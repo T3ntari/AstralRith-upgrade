@@ -166,7 +166,7 @@ img {
   transition: filter 0.15s ease, transform 0.15s ease;
 }
 
-/* Performance: optimize grid rendering */
+/* Performance: isolate layout for instance cards */
 .instances {
   contain: layout style;
 }
@@ -174,6 +174,48 @@ img {
 /* Performance: reduce reflow for absolutely positioned elements */
 .absolute {
   will-change: auto;
+}
+
+/* Performance: cull off-screen search results and instance cards */
+.project-list > section,
+.search > section {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 120px;
+}
+
+/* Performance: cull off-screen instance cards */
+.instances > * {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 80px;
+  contain: layout style paint;
+}
+
+/* Performance: cull off-screen sidebar content */
+.app-sidebar-scrollable {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 500px;
+}
+
+/* Performance: isolate news feed items */
+.sidebar-default-content a {
+  contain: layout style;
+}
+
+/* Performance: reduce composite layers for buttons */
+button {
+  contain: layout style;
+}
+
+/* Performance: isolate dropdown/popover content */
+[v-popper] {
+  contain: layout style paint;
+}
+
+/* Performance: GPU-accelerate all transitions */
+[class*="hover:"],
+[class*="focus:"] {
+  will-change: auto;
+  transition: filter 0.15s ease, background-color 0.15s ease, transform 0.15s ease, opacity 0.15s ease;
 }
 
 @import '@modrinth/assets/omorphia.scss';

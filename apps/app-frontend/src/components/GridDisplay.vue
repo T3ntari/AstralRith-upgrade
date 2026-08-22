@@ -260,6 +260,7 @@ const filteredResults = computed(() => {
     <section class="instances">
       <Instance
         v-for="instance in instanceSection.value"
+        v-memo="[instance.path, instance.install_stage, instance.modified]"
         :key="instance.path + instance.install_stage"
         :instance="instance"
         @contextmenu.prevent.stop="(event) => handleRightClick(event, instance.path)"

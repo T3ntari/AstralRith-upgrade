@@ -1,6 +1,6 @@
 <template>
   <div
-    class="card-shadow p-4 bg-bg-raised rounded-xl flex gap-3 group cursor-pointer hover:brightness-90 transition-all"
+    class="card-shadow p-4 bg-bg-raised rounded-xl flex gap-3 group cursor-pointer hover:brightness-90 transition-all search-card"
     @click="
       () => {
         emit('open')
@@ -12,7 +12,7 @@
     "
   >
     <div class="icon w-[96px] h-[96px] relative">
-      <Avatar :src="project.icon_url" size="96px" class="search-icon origin-top transition-all" />
+      <Avatar :src="project.icon_url" size="96px" class="search-icon origin-top transition-all" loading="lazy" />
     </div>
     <div class="flex flex-col gap-2 overflow-hidden">
       <div class="gap-2 overflow-hidden no-wrap text-ellipsis">
@@ -173,3 +173,11 @@ async function install() {
 
 const modpack = computed(() => props.project.project_type === 'modpack')
 </script>
+
+<style scoped>
+.search-card {
+  contain: layout style;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 120px;
+}
+</style>

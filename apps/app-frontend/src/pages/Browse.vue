@@ -736,7 +736,7 @@ await refreshSearch()
         :provided-message="messages.providedByInstance"
       />
     </div>
-    <div class="search">
+    <div class="search" style="contain: layout style;">
       <section v-if="isCurseForge && showCfKeyPrompt" class="offline">
         <div class="cf-key-card card-shadow p-6 bg-bg-raised rounded-xl max-w-[32rem] text-left">
           <h2 class="text-xl font-bold m-0 mb-2 text-contrast">CurseForge mode needs an API key</h2>
@@ -773,6 +773,7 @@ await refreshSearch()
       >
         <CfSearchCard
           v-for="mod in cfResults"
+          v-memo="[mod.id, cfInstalled.includes(String(mod.id))]"
           :key="mod.id"
           :mod="mod"
           :instance="instance"
@@ -798,6 +799,7 @@ await refreshSearch()
       <section v-else class="project-list display-mode--list instance-results" role="list">
         <SearchCard
           v-for="result in results.hits"
+          v-memo="[result.project_id, result.installed]"
           :key="result?.project_id"
           :project="result"
           :instance="instance"

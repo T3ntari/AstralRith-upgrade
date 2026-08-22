@@ -139,7 +139,7 @@ onUnmounted(() => unlisten())
 <template>
   <template v-if="compact">
     <div
-      class="card-shadow grid grid-cols-[auto_1fr_auto] bg-bg-raised rounded-xl p-3 pl-4 gap-2 cursor-pointer hover:brightness-90 transition-all"
+      class="card-shadow grid grid-cols-[auto_1fr_auto] bg-bg-raised rounded-xl p-3 pl-4 gap-2 cursor-pointer hover:brightness-90 transition-all instance-card"
       @click="seeInstance"
       @mouseenter="checkProcess"
     >
@@ -148,6 +148,7 @@ onUnmounted(() => unlisten())
         :src="instance.icon_path ? convertFileSrc(instance.icon_path) : null"
         :tint-by="instance.path"
         alt="Mod card"
+        loading="lazy"
       />
       <div class="h-full flex items-center font-bold text-contrast leading-normal">
         <span class="line-clamp-2">{{ instance.name }}</span>
@@ -182,7 +183,7 @@ onUnmounted(() => unlisten())
   </template>
   <div v-else>
     <div
-      class="button-base bg-bg-raised p-4 rounded-xl flex gap-3 group"
+      class="button-base bg-bg-raised p-4 rounded-xl flex gap-3 group instance-card"
       @click="seeInstance"
       @mouseenter="checkProcess"
     >
@@ -192,6 +193,7 @@ onUnmounted(() => unlisten())
           :src="instance.icon_path ? convertFileSrc(instance.icon_path) : null"
           :tint-by="instance.path"
           alt="Mod card"
+          loading="lazy"
           :class="`transition-all ${modLoading || installing ? `brightness-[0.25] scale-[0.85]` : `group-hover:brightness-75`}`"
         />
         <div class="absolute inset-0 flex items-center justify-center">
@@ -238,3 +240,11 @@ onUnmounted(() => unlisten())
     </div>
   </div>
 </template>
+
+<style scoped>
+.instance-card {
+  contain: layout style;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 80px;
+}
+</style>

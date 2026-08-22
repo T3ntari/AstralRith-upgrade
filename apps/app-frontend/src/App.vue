@@ -144,8 +144,12 @@ async function setupApp() {
 
   isMaximized.value = await getCurrentWindow().isMaximized()
 
+  let resizeRaf = null
   await getCurrentWindow().onResized(async () => {
-    isMaximized.value = await getCurrentWindow().isMaximized()
+    if (resizeRaf) cancelAnimationFrame(resizeRaf)
+    resizeRaf = requestAnimationFrame(async () => {
+      isMaximized.value = await getCurrentWindow().isMaximized()
+    })
   })
 
   initAnalytics()
