@@ -207,23 +207,27 @@ const loading = ref(false)
 async function fetchInstance() {
   instance.value = await get(route.params.id).catch(handleError)
 
-  if (!offline.value && instance.value.linked_data && instance.value.linked_data.project_id) {
-    get_project(instance.value.linked_data.project_id, 'must_revalidate')
-      .catch(handleError)
-      .then((project) => {
-        if (project && project.versions) {
-          get_version_many(project.versions, 'must_revalidate')
-            .catch(handleError)
-            .then((versions) => {
-              modrinthVersions.value = versions.sort(
-                (a, b) => dayjs(b.date_published) - dayjs(a.date_published),
-              )
-            })
+  // Parallelize independent operations: linked project data + process check
+  const [, runningProcesses] = await Promise.all([
+    // Fetch linked project data (Modrinth versions)
+    (async () => {
+      if (!offline.value && instance.value?.linked_data?.project_id) {
+        try {
+          const project = await get_project(instance.value.linked_data.project_id, 'must_revalidate')
+          if (project?.versions) {
+            const versions = await get_version_many(project.versions, 'must_revalidate')
+            modrinthVersions.value = versions.sort(
+              (a, b) => dayjs(b.date_published) - dayjs(a.date_published),
+            )
+          }
+        } catch (err) {
+          handleError(err)
         }
-      })
-  }
-
-  const runningProcesses = await get_by_profile_path(route.params.id).catch(handleError)
+      }
+    })(),
+    // Check if instance is running
+    get_by_profile_path(route.params.id).catch(handleError),
+  ])
 
   playing.value = runningProcesses.length > 0
 }
@@ -231,9 +235,9 @@ async function fetchInstance() {
 await fetchInstance()
 watch(
   () => route.params.id,
-  async () => {
+  () => {
     if (route.params.id && route.path.startsWith('/instance')) {
-      await fetchInstance()
+      fetchInstance().catch(handleError)
     }
   },
 )

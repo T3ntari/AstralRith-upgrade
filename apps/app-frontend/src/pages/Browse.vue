@@ -241,22 +241,26 @@ const cfGameVersionOptions = computed(() => [
 
 const cfPageCount = computed(() => Math.max(1, Math.ceil(cfTotalHits.value / cfPageSize)))
 
-watch(isCurseForge, async (enabled) => {
+watch(isCurseForge, (enabled) => {
   setCfMode(enabled)
   if (enabled) {
-    await loadCfData()
-    cfPage.value = 0
-    await cfSearch()
+    loadCfData()
+      .then(() => {
+        cfPage.value = 0
+        return cfSearch()
+      })
+      .catch(handleError)
   }
 })
 
 watch(
   () => route.params.projectType,
-  async () => {
+  () => {
     if (!isCurseForge.value) return
     cfPage.value = 0
-    await loadCfData()
-    await cfSearch()
+    loadCfData()
+      .then(() => cfSearch())
+      .catch(handleError)
   },
 )
 

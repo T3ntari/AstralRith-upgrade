@@ -167,8 +167,12 @@ function getAccountType(account) { // Patched
 }
 
 async function refreshValues() {
-  defaultUser.value = await get_default_user().catch(handleError)
-  accounts.value = await users().catch(handleError)
+  const [defaultUserVal, accountsVal] = await Promise.all([
+    get_default_user().catch(handleError),
+    users().catch(handleError),
+  ])
+  defaultUser.value = defaultUserVal
+  accounts.value = accountsVal
 }
 defineExpose({
   refreshValues,

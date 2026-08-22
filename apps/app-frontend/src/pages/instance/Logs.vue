@@ -307,7 +307,7 @@ const deleteLog = async () => {
   }
 }
 
-const clearLiveLog = async () => {
+const clearLiveLog = () => {
   currentLiveLog.value = ''
   // does not reset cursor
 }

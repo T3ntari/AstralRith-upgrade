@@ -66,9 +66,9 @@ export const install = async (projectId, versionId, instancePath, source, callba
   } else {
     if (instancePath) {
       const [instance, instanceProjects, versions] = await Promise.all([
-        await get(instancePath).catch(handleError),
-        await get_projects(instancePath).catch(handleError),
-        await get_version_many(project.versions, 'must_revalidate'),
+        get(instancePath).catch(handleError),
+        get_projects(instancePath).catch(handleError),
+        get_version_many(project.versions, 'must_revalidate'),
       ])
 
       const projectVersions = versions.sort(

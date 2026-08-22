@@ -128,7 +128,7 @@ import ModalWrapper from './modal/ModalWrapper.vue'
 
 const confirmUpdate = ref(null)
 
-const confirmUpdating = async () => {
+const confirmUpdating = () => {
   confirmUpdate.value.show()
 }
 
@@ -328,7 +328,7 @@ const toggleCard = async () => {
   await refreshInfo()
 }
 
-const toggleProfiles = async () => {
+const toggleProfiles = () => {
   if (currentProcesses.value.length === 1) return
   showProfiles.value = !showProfiles.value
   showCard.value = false

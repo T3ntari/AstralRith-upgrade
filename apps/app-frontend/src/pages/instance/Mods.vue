@@ -362,13 +362,13 @@ const initProjects = async (cacheBehaviour?) => {
   }
 
   const [modrinthProjects, modrinthVersions] = await Promise.all([
-    await get_project_many(fetchProjects).catch(handleError),
-    await get_version_many(fetchVersions).catch(handleError),
+    get_project_many(fetchProjects).catch(handleError),
+    get_version_many(fetchVersions).catch(handleError),
   ])
 
   const [modrinthTeams, modrinthOrganizations] = await Promise.all([
-    await get_team_many(modrinthProjects.map((x) => x.team)).catch(handleError),
-    await get_organization_many(
+    get_team_many(modrinthProjects.map((x) => x.team)).catch(handleError),
+    get_organization_many(
       modrinthProjects.map((x) => x.organization).filter((x) => !!x),
     ).catch(handleError),
   ])
@@ -693,10 +693,11 @@ const copyModLink = async (mod) => {
 }
 
 const deleteSelected = async () => {
-  for (const project of functionValues.value) {
-    await remove_project(props.instance.path, project.path).catch(handleError)
-  }
-
+  await Promise.all(
+    functionValues.value.map((project) =>
+      remove_project(props.instance.path, project.path).catch(handleError),
+    ),
+  )
   projects.value = projects.value.filter((x) => !x.selected)
 }
 
@@ -776,10 +777,10 @@ async function refreshProjects() {
 const unlisten = await getCurrentWebview().onDragDropEvent(async (event) => {
   if (event.payload.type !== 'drop') return
 
-  for (const file of event.payload.paths) {
-    if (file.endsWith('.mrpack')) continue
-    await add_project_from_path(props.instance.path, file).catch(handleError)
-  }
+  const addPromises = event.payload.paths
+    .filter((file) => !file.endsWith('.mrpack'))
+    .map((file) => add_project_from_path(props.instance.path, file).catch(handleError))
+  await Promise.all(addPromises)
   await initProjects()
 })
 

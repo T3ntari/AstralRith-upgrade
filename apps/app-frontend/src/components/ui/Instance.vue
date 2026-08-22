@@ -46,8 +46,8 @@ const installing = computed(() => props.instance.install_stage !== 'installed')
 
 const router = useRouter()
 
-const seeInstance = async () => {
-  await router.push(`/instance/${encodeURIComponent(props.instance.path)}`)
+const seeInstance = () => {
+  router.push(`/instance/${encodeURIComponent(props.instance.path)}`)
 }
 
 let checkProcessTimeout = null

@@ -127,9 +127,15 @@ async function setupApp() {
     await router.push('/library')
   }
 
-  os.value = await getOS()
-  const dev = await isDev()
-  const version = await getVersion()
+  // Parallelize independent Tauri IPC calls for faster startup
+  const [osVal, dev, version, maximized, osType] = await Promise.all([
+    getOS(),
+    isDev(),
+    getVersion(),
+    getCurrentWindow().isMaximized(),
+    type(),
+  ])
+  os.value = osVal
   showOnboarding.value = !onboarded
 
   nativeDecorations.value = native_decorations
@@ -142,7 +148,7 @@ async function setupApp() {
   themeStore.devMode = developer_mode
   themeStore.featureFlags = feature_flags
 
-  isMaximized.value = await getCurrentWindow().isMaximized()
+  isMaximized.value = maximized
 
   let resizeRaf = null
   await getCurrentWindow().onResized(async () => {
@@ -166,7 +172,6 @@ async function setupApp() {
 
   if (!dev) document.addEventListener('contextmenu', (event) => event.preventDefault())
 
-  const osType = await type()
   if (osType === 'macos') {
     document.getElementsByTagName('html')[0].classList.add('mac')
   } else {
@@ -199,7 +204,7 @@ async function setupApp() {
 
   get_opening_command().then(handleCommand)
   // checkUpdates()
-  fetchCredentials()
+  fetchCredentials().catch(console.error)
 }
 
 const stateFailed = ref(false)
