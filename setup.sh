@@ -106,16 +106,22 @@ install_new() {
 
     # Find installed binary
     local bin_path=""
-    for candidate in "/usr/bin/astralrinth" "/usr/local/bin/astralrinth" "$INSTALL_DIR/astralrinth"; do
+    for candidate in "/usr/bin/astralrinth-app" "/usr/bin/astralrinth" "/usr/local/bin/astralrinth" "$INSTALL_DIR/astralrinth"; do
         if [[ -x "$candidate" ]]; then
             bin_path="$candidate"
             break
         fi
     done
 
+    # Fallback: search dpkg for common package names
     if [[ -z "$bin_path" ]]; then
-        # Fallback: search dpkg
-        bin_path=$(dpkg -L astralrinth 2>/dev/null | grep -E '/bin/astralrinth$' | head -1 || true)
+        bin_path=$(dpkg -L astral-rinth-app 2>/dev/null | grep -E '/bin/' | head -1 || true)
+    fi
+    if [[ -z "$bin_path" ]]; then
+        bin_path=$(dpkg -L astralrinth 2>/dev/null | grep -E '/bin/' | head -1 || true)
+    fi
+    if [[ -z "$bin_path" ]]; then
+        bin_path=$(dpkg -L AstralRinth 2>/dev/null | grep -E '/bin/' | head -1 || true)
     fi
 
     if [[ -z "$bin_path" ]]; then
@@ -155,9 +161,10 @@ create_desktop_entry() {
 
     if [[ "$is_appimage" == "true" ]]; then
         # Strip GPU env vars that break webkit2gtk on Wayland/NVIDIA hybrid
-        exec_line="env -u VK_LOADER_DRIVERS_SELECT -u __GLX_VENDOR_LIBRARY_NAME -u __NV_PRIME_RENDER_OFFLOAD $bin_path --appimage-extract-and-run"
+        # Also disable DMABUF renderer to prevent black screen on NVIDIA/AMD
+        exec_line="env -u VK_LOADER_DRIVERS_SELECT -u __GLX_VENDOR_LIBRARY_NAME -u __NV_PRIME_RENDER_OFFLOAD WEBKIT_DISABLE_DMABUF_RENDERER=1 $bin_path --appimage-extract-and-run"
     else
-        exec_line="$bin_path"
+        exec_line="env -u VK_LOADER_DRIVERS_SELECT -u __GLX_VENDOR_LIBRARY_NAME -u __NV_PRIME_RENDER_OFFLOAD WEBKIT_DISABLE_DMABUF_RENDERER=1 $bin_path"
     fi
 
     cat > "$DESKTOP_DIR/astralrinth.desktop" <<EOF
