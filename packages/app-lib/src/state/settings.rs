@@ -31,6 +31,11 @@ pub struct Settings {
     pub hide_on_process_start: bool,
     pub hooks: Hooks,
 
+    /// Enable GPU/performance optimizations for Minecraft launch.
+    /// Injects NVIDIA threaded GL, G1GC JVM args, and performance-friendly
+    /// Minecraft options.txt settings.
+    pub gpu_optimizations: bool,
+
     pub custom_dir: Option<String>,
     pub prev_custom_dir: Option<String>,
     pub migrated: bool,
@@ -60,7 +65,8 @@ impl Settings {
                 json(extra_launch_args) extra_launch_args, json(custom_env_vars) custom_env_vars,
                 mc_memory_max, mc_force_fullscreen, mc_game_resolution_x, mc_game_resolution_y, hide_on_process_start,
                 hook_pre_launch, hook_wrapper, hook_post_exit,
-                custom_dir, prev_custom_dir, migrated, json(feature_flags) feature_flags, toggle_sidebar
+                custom_dir, prev_custom_dir, migrated, json(feature_flags) feature_flags, toggle_sidebar,
+                gpu_optimizations
             FROM settings
             "
         )
@@ -108,6 +114,7 @@ impl Settings {
             custom_dir: res.custom_dir,
             prev_custom_dir: res.prev_custom_dir,
             migrated: res.migrated == 1,
+            gpu_optimizations: res.gpu_optimizations != 0,
             feature_flags: res
                 .feature_flags
                 .as_ref()
@@ -165,7 +172,8 @@ impl Settings {
                 migrated = $25,
 
                 toggle_sidebar = $26,
-                feature_flags = $27
+                feature_flags = $27,
+                gpu_optimizations = $28
             ",
             max_concurrent_writes,
             max_concurrent_downloads,
@@ -193,7 +201,8 @@ impl Settings {
             self.prev_custom_dir,
             self.migrated,
             self.toggle_sidebar,
-            feature_flags
+            feature_flags,
+            self.gpu_optimizations,
         )
         .execute(exec)
         .await?;

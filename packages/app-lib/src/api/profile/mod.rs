@@ -668,7 +668,7 @@ pub async fn run_credentials(
         }
     }
 
-    let java_args = profile
+    let mut java_args = profile
         .extra_launch_args
         .clone()
         .unwrap_or(settings.extra_launch_args);
@@ -679,7 +679,7 @@ pub async fn run_credentials(
     let resolution =
         profile.game_resolution.unwrap_or(settings.game_resolution);
 
-    let env_args = profile
+    let mut env_args = profile
         .custom_env_vars
         .clone()
         .unwrap_or(settings.custom_env_vars);
@@ -696,6 +696,65 @@ pub async fn run_credentials(
     } else if settings.force_fullscreen {
         // If global settings wants to force a fullscreen, do it
         mc_set_options.push(("fullscreen".to_string(), "true".to_string()));
+    }
+
+    // ── GPU / VSYNC optimizations ──────────────────────────────────────────────
+    // Injects NVIDIA threaded GL, G1GC JVM args, and performance-friendly
+    // Minecraft options.txt settings when gpu_optimizations is enabled.
+    // These dramatically improve FPS on Linux + dedicated GPU setups.
+    let mut java_args = java_args;
+    let mut env_args = env_args;
+    if settings.gpu_optimizations {
+        // Env vars: NVIDIA threaded optimizations, disable driver vsync cap
+        let gpu_env_vars: Vec<(String, String)> = vec![
+            ("__GL_THREADED_OPTIMIZATIONS".to_string(), "1".to_string()),
+            ("__GL_SYNC_TO_VBLANK".to_string(), "0".to_string()),
+            ("vblank_mode".to_string(), "0".to_string()),
+            ("__GL_YIELD".to_string(), "NOTHING".to_string()),
+        ];
+        for (k, v) in gpu_env_vars {
+            if !env_args.iter().any(|(ek, _)| ek == &k) {
+                env_args.push((k, v));
+            }
+        }
+
+        // JVM args: G1GC with tuned GC for smooth frame pacing
+        let gpu_jvm_args: Vec<String> = vec![
+            "-XX:+UseG1GC".to_string(),
+            "-XX:+ParallelRefProcEnabled".to_string(),
+            "-XX:+DisableExplicitGC".to_string(),
+            "-XX:+UnlockExperimentalVMOptions".to_string(),
+            "-XX:G1NewSizePercent=20".to_string(),
+            "-XX:G1ReservePercent=20".to_string(),
+            "-XX:MaxGCPauseMillis=50".to_string(),
+            "-XX:+UseStringDeduplication".to_string(),
+        ];
+        for arg in gpu_jvm_args {
+            if !java_args.iter().any(|a| a == &arg) {
+                java_args.push(arg);
+            }
+        }
+
+        // Minecraft options.txt: smooth vsync + performance graphics
+        let gpu_mc_options: Vec<(String, String)> = vec![
+            ("vsync".to_string(), "true".to_string()),
+            ("graphics".to_string(), "fast".to_string()),
+            ("fancyGraphics".to_string(), "false".to_string()),
+            ("renderDistance".to_string(), "12".to_string()),
+            ("particles".to_string(), "minimal".to_string()),
+            ("cloudHeight".to_string(), "0".to_string()),
+            ("ao".to_string(), "0".to_string()),
+            ("smoothLighting".to_string(), "false".to_string()),
+            ("clouds".to_string(), "false".to_string()),
+            ("fboEnable".to_string(), "true".to_string()),
+            ("entityShadows".to_string(), "false".to_string()),
+            ("maxFps".to_string(), "0".to_string()),
+        ];
+        for (k, v) in gpu_mc_options {
+            if !mc_set_options.iter().any(|(ek, _)| ek == &k) {
+                mc_set_options.push((k, v));
+            }
+        }
     }
 
     crate::launcher::launch_minecraft(

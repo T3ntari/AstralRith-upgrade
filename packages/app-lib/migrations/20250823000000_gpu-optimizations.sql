@@ -1,0 +1,1 @@
+ALTER TABLE settings ADD COLUMN gpu_optimizations INTEGER NOT NULL DEFAULT TRUE;

@@ -407,9 +407,19 @@ const pageCount = computed(() =>
   results.value ? Math.ceil(results.value.total_hits / results.value.limit) : 1,
 )
 
+// Debounce search refreshes to avoid network spam on every keystroke
+let searchRefreshTimeout = null
+const debouncedRefreshSearch = () => {
+  if (searchRefreshTimeout) clearTimeout(searchRefreshTimeout)
+  searchRefreshTimeout = setTimeout(() => {
+    if (!route.params.projectType) return
+    refreshSearch()
+  }, 250)
+}
+
 watch(requestParams, () => {
   if (!route.params.projectType) return
-  refreshSearch()
+  debouncedRefreshSearch()
 })
 
 async function refreshSearch() {

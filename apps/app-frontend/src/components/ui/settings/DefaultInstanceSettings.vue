@@ -119,6 +119,30 @@ watch(
       unit="MB"
     />
 
+    <hr class="mt-4 bg-button-border border-none h-[1px]" />
+
+    <div class="flex items-center justify-between gap-4">
+      <div>
+        <h3 class="mt-2 m-0 text-base font-extrabold text-primary">GPU optimizations</h3>
+        <p class="m-0 mt-1 mb-2 leading-tight text-secondary">
+          Enables NVIDIA threaded GL, G1GC JVM arguments, and performance-friendly
+          Minecraft settings (smooth VSYNC, fast graphics, reduced particles) for
+          dramatically improved FPS on dedicated GPUs.
+        </p>
+      </div>
+
+      <Toggle
+        id="gpu-optimizations"
+        :model-value="settings.gpu_optimizations"
+        :checked="settings.gpu_optimizations"
+        @update:model-value="
+          (e) => {
+            settings.gpu_optimizations = e
+          }
+        "
+      />
+    </div>
+
     <h2 class="mt-4 mb-2 text-lg font-extrabold text-contrast">Java arguments</h2>
     <input
       id="java-args"

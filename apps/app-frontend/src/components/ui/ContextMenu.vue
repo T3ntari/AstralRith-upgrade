@@ -48,6 +48,9 @@ defineExpose({
     }
 
     shown.value = true
+    // Only listen for outside clicks while menu is open (perf: avoids
+    // document.elementsFromPoint() on every click in the app)
+    document.body.addEventListener('click', handleClickOutside, true)
   },
 })
 
@@ -62,6 +65,7 @@ const isLinkedData = (item) => {
 
 const hideContextMenu = () => {
   shown.value = false
+  document.body.removeEventListener('click', handleClickOutside, true)
   emit('menu-closed')
 }
 
@@ -91,12 +95,11 @@ const handleClickOutside = (event) => {
 }
 
 onMounted(() => {
-  window.addEventListener('click', handleClickOutside)
   document.body.addEventListener('keyup', onEscKeyRelease)
 })
 
 onBeforeUnmount(() => {
-  window.removeEventListener('click', handleClickOutside)
+  document.body.removeEventListener('click', handleClickOutside, true)
   document.removeEventListener('keyup', onEscKeyRelease)
 })
 </script>

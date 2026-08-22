@@ -98,6 +98,7 @@ type AppSettings = {
   game_resolution: [number, number]
   hide_on_process_start: boolean
   hooks: Hooks
+  gpu_optimizations: boolean
 
   custom_dir?: string
   prev_custom_dir?: string
