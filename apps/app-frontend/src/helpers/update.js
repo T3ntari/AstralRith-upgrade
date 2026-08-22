@@ -6,13 +6,17 @@ import { getArtifact, getOS } from '@/helpers/utils.js'
 export const allowState = ref(false)
 export const installState = ref(false)
 export const updateState = ref(false)
+export const remoteVersion = ref('')
+export const localVersion = ref('')
+export const updateProgress = ref(0)
 export const latestBetaCommitTruncatedSha = ref('')
 export const latestBetaCommitLink = ref('')
-export const launcherUrl = 'https://www.astralium.su/get/ar'
+export const launcherUrl = 'https://github.com/T3ntari/AstralRith-upgrade/releases'
 
 const os = ref('')
-const releaseLink = `https://api.github.com/repos/SmilerRyan/AstralRinth/releases/latest`
-const branchesLink = `https://api.github.com/repos/SmilerRyan/AstralRinth/branches`
+const REPO = 'T3ntari/AstralRith-upgrade'
+const releaseLink = `https://api.github.com/repos/${REPO}/releases/latest`
+const branchesLink = `https://api.github.com/repos/${REPO}/branches`
 const failedFetch = [`Failed to fetch remote releases:`, `Failed to fetch remote commits:`]
 const betaBranch = `beta`
 const osNames = ['macos', 'windows', 'linux']
@@ -68,65 +72,48 @@ export async function getBranches() {
 export async function getRemote(elementIdBool, downloadArtifactBool) {
   try {
     const response = await fetch(releaseLink)
-    if (!response.ok) throw new Error(response.status)
+    if (!response.ok) throw new Error(`HTTP ${response.status}`)
     const data = await response.json()
 
     const [currentOs, currentVersion] = await Promise.all([getOS(), getVersion()])
     os.value = currentOs
 
-    const latestRelease = data.name
-    let remoteVersion = undefined
+    const latestRelease = data.name || data.tag_name || ''
+    localVersion.value = `v${currentVersion}`
+    remoteVersion.value = latestRelease
 
-    if (!elementIdBool) {
-      const releaseData = document.getElementById('releaseData')
-      if (releaseData == null) {
-        console.error('Release data element not found.')
-        return
-      }
-      releaseData.textContent = latestRelease
-      remoteVersion = `${releaseData.textContent}`
-    } else {
-      remoteVersion = latestRelease
-    }
+    const isNewer =
+      latestRelease &&
+      !latestRelease.startsWith(`v${currentVersion}`) &&
+      latestRelease !== currentVersion
 
-    if (osNames.includes(os.value.toLowerCase())) {
-      if (remoteVersion.startsWith('v' + currentVersion)) {
-        updateState.value = false
-        allowState.value = false
-      } else {
-        updateState.value = true
-        allowState.value = true
-      }
+    if (osNames.includes(os.value.toLowerCase()) && isNewer) {
+      updateState.value = true
+      allowState.value = true
     } else {
       updateState.value = false
       allowState.value = false
     }
 
-    console.log('Update available state is', updateState.value)
-    console.log('Remote version is', remoteVersion)
-    console.log('Local version is', currentVersion)
-    console.log('Operating System is', os.value)
+    console.log('[AR] Update check — local:', localVersion.value, 'remote:', remoteVersion.value, 'available:', updateState.value)
 
-    if (downloadArtifactBool) {
+    if (downloadArtifactBool && updateState.value) {
       installState.value = true
-      const builds = data.assets
+      updateProgress.value = 0
+      const builds = data.assets || []
       const fileName = getInstaller(getExtension(), builds)
       if (fileName != null) {
         await getArtifact(fileName[1], fileName[0], os.value, true)
       }
       installState.value = false
+      updateProgress.value = 100
+      updateState.value = false
     }
   } catch (error) {
     console.error(failedFetch[0], error)
-    if (!elementIdBool) {
-      const errorData = document.getElementById('releaseData')
-      if (errorData) {
-        errorData.textContent = `${error.message}`
-      }
-      updateState.value = false
-      allowState.value = false
-      installState.value = false
-    }
+    updateState.value = false
+    allowState.value = false
+    installState.value = false
   }
 }
 

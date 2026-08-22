@@ -447,7 +447,12 @@ function handleAuxClick(e) {
         <PlusIcon />
       </NavButton>
       <div class="flex flex-grow"></div>
-      <NavButton v-if="updateAvailable" v-tooltip.right="'Install update'" :to="() => restartApp()">
+      <NavButton
+        v-if="updateState"
+        class="update-nav-button"
+        v-tooltip.right="'Update available'"
+        :to="() => updateModal?.show()"
+      >
         <DownloadIcon />
       </NavButton>
       <NavButton v-tooltip.right="'Settings'" :to="() => $refs.settingsModal.show()">
@@ -840,6 +845,25 @@ function handleAuxClick(e) {
 
 .sidebar-teleport-content:empty + .sidebar-default-content.sidebar-enabled {
   display: contents;
+}
+
+.update-nav-button {
+  :deep(svg) {
+    color: #a3e635 !important;
+  }
+  position: relative;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 8px;
+    height: 8px;
+    border-radius: 9999px;
+    background-color: #a3e635;
+    box-shadow: 0 0 6px #a3e635;
+  }
 }
 </style>
 <style>
