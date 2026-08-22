@@ -7,8 +7,6 @@
 use native_dialog::{MessageDialog, MessageType};
 use tauri::{Listener, Manager};
 use theseus::prelude::*;
-#[cfg(target_os = "linux")]
-use rusqlite;
 
 mod api;
 mod error;
@@ -157,27 +155,10 @@ fn main() {
         if std::env::var("WEBKIT_DISABLE_DMABUF_RENDERER").is_err() {
             std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
         }
-    }
-
-    // Read launcher_vsync setting from DB before webview init to set __GL_SYNC_TO_VBLANK
-    #[cfg(target_os = "linux")]
-    {
-        use std::path::PathBuf;
-        if let Ok(settings_dir) = crate::state::DirectoryInfo::get_initial_settings_dir() {
-            let db_path = settings_dir.join("app.db");
-            if db_path.exists() {
-                if let Ok(conn) = rusqlite::Connection::open(&db_path) {
-                    if let Ok(mut stmt) = conn.prepare("SELECT launcher_vsync FROM settings LIMIT 1") {
-                        if let Ok(vsync) = stmt.query_row([], |row| row.get::<_, i64>(0)) {
-                            if vsync == 0 {
-                                std::env::set_var("__GL_SYNC_TO_VBLANK", "0");
-                            } else {
-                                std::env::set_var("__GL_SYNC_TO_VBLANK", "1");
-                            }
-                        }
-                    }
-                }
-            }
+        // Default to VSYNC on for smooth launcher rendering. Users can override
+        // via environment variable if needed. The UI setting takes effect on next launch.
+        if std::env::var("__GL_SYNC_TO_VBLANK").is_err() {
+            std::env::set_var("__GL_SYNC_TO_VBLANK", "1");
         }
     }
 

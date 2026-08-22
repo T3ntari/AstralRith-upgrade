@@ -148,7 +148,6 @@ export default defineNuxtConfig({
       }
 
       state.lastGenerated = new Date().toISOString();
-
       state.apiUrl = API_URL;
 
       const headers = {
@@ -156,6 +155,16 @@ export default defineNuxtConfig({
           "user-agent": "Knossos generator (support@modrinth.com)",
         },
       };
+
+      // Helper to fetch with graceful error handling
+      async function safeFetch(url: string) {
+        try {
+          return await $fetch(url, headers);
+        } catch (e) {
+          console.warn(`[build] Failed to fetch ${url}:`, e);
+          return null;
+        }
+      }
 
       const [
         categories,
@@ -168,30 +177,31 @@ export default defineNuxtConfig({
         homePageNotifs,
         products,
       ] = await Promise.all([
-        $fetch(`${API_URL}tag/category`, headers),
-        $fetch(`${API_URL}tag/loader`, headers),
-        $fetch(`${API_URL}tag/game_version`, headers),
-        $fetch(`${API_URL}tag/donation_platform`, headers),
-        $fetch(`${API_URL}tag/report_type`, headers),
-        $fetch(`${API_URL}projects_random?count=60`, headers),
-        $fetch(`${API_URL}search?limit=3&query=leave&index=relevance`, headers),
-        $fetch(`${API_URL}search?limit=3&query=&index=updated`, headers),
-        $fetch(`${API_URL.replace("/v2/", "/_internal/")}billing/products`, headers),
+        safeFetch(`${API_URL}tag/category`),
+        safeFetch(`${API_URL}tag/loader`),
+        safeFetch(`${API_URL}tag/game_version`),
+        safeFetch(`${API_URL}tag/donation_platform`),
+        safeFetch(`${API_URL}tag/report_type`),
+        safeFetch(`${API_URL}projects_random?count=60`),
+        safeFetch(`${API_URL}search?limit=3&query=leave&index=relevance`),
+        safeFetch(`${API_URL}search?limit=3&query=&index=updated`),
+        safeFetch(`${API_URL.replace("/v2/", "/_internal/")}billing/products`),
       ]);
 
-      state.categories = categories;
-      state.loaders = loaders;
-      state.gameVersions = gameVersions;
-      state.donationPlatforms = donationPlatforms;
-      state.reportTypes = reportTypes;
-      state.homePageProjects = homePageProjects;
-      state.homePageSearch = homePageSearch;
-      state.homePageNotifs = homePageNotifs;
-      state.products = products;
+      // Only update state if fetch succeeded, otherwise keep existing data
+      if (categories) state.categories = categories;
+      if (loaders) state.loaders = loaders;
+      if (gameVersions) state.gameVersions = gameVersions;
+      if (donationPlatforms) state.donationPlatforms = donationPlatforms;
+      if (reportTypes) state.reportTypes = reportTypes;
+      if (homePageProjects) state.homePageProjects = homePageProjects;
+      if (homePageSearch) state.homePageSearch = homePageSearch;
+      if (homePageNotifs) state.homePageNotifs = homePageNotifs;
+      if (products) state.products = products;
 
       await fs.writeFile("./src/generated/state.json", JSON.stringify(state));
 
-      console.log("Tags generated!");
+      console.log("Tags generated (with graceful error handling)!");
     },
     "pages:extend"(routes) {
       routes.splice(

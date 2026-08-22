@@ -67,12 +67,6 @@ const checkProcess = async () => {
   }, CHECK_DEBOUNCE_MS)
 }
 
-const checkProcess = async () => {
-  const runningProcesses = await get_by_profile_path(props.instance.path).catch(handleError)
-
-  playing.value = runningProcesses.length > 0
-}
-
 const play = async (e, context) => {
   e?.stopPropagation()
   loading.value = true
