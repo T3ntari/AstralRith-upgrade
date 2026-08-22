@@ -4,6 +4,7 @@ export const useTheming = defineStore('themeStore', {
   state: () => ({
     themeOptions: ['dark', 'light', 'oled', 'system'],
     advancedRendering: true,
+    efficientMode: false,
     selectedTheme: 'dark',
     toggleSidebar: false,
 
@@ -11,6 +12,15 @@ export const useTheming = defineStore('themeStore', {
     featureFlags: {},
   }),
   actions: {
+    setEfficientMode(enabled) {
+      this.efficientMode = enabled
+      const html = document.getElementsByTagName('html')[0]
+      if (enabled) {
+        html.classList.add('efficient-mode')
+      } else {
+        html.classList.remove('efficient-mode')
+      }
+    },
     setThemeState(newTheme) {
       if (this.themeOptions.includes(newTheme)) this.selectedTheme = newTheme
       else console.warn('Selected theme is not present. Check themeOptions.')

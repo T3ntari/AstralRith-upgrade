@@ -36,6 +36,10 @@ pub struct Settings {
     /// Minecraft options.txt settings.
     pub gpu_optimizations: bool,
 
+    /// Reduce launcher visual effects for low-end devices.
+    /// Disables shadows, blurs, gradients, and most animations.
+    pub efficient_mode: bool,
+
     pub custom_dir: Option<String>,
     pub prev_custom_dir: Option<String>,
     pub migrated: bool,
@@ -66,7 +70,7 @@ impl Settings {
                 mc_memory_max, mc_force_fullscreen, mc_game_resolution_x, mc_game_resolution_y, hide_on_process_start,
                 hook_pre_launch, hook_wrapper, hook_post_exit,
                 custom_dir, prev_custom_dir, migrated, json(feature_flags) feature_flags, toggle_sidebar,
-                gpu_optimizations
+                gpu_optimizations, efficient_mode
             FROM settings
             "
         )
@@ -115,6 +119,7 @@ impl Settings {
             prev_custom_dir: res.prev_custom_dir,
             migrated: res.migrated == 1,
             gpu_optimizations: res.gpu_optimizations != 0,
+            efficient_mode: res.efficient_mode != 0,
             feature_flags: res
                 .feature_flags
                 .as_ref()
@@ -173,7 +178,8 @@ impl Settings {
 
                 toggle_sidebar = $26,
                 feature_flags = $27,
-                gpu_optimizations = $28
+                gpu_optimizations = $28,
+                efficient_mode = $29
             ",
             max_concurrent_writes,
             max_concurrent_downloads,
@@ -203,6 +209,7 @@ impl Settings {
             self.toggle_sidebar,
             feature_flags,
             self.gpu_optimizations,
+            self.efficient_mode,
         )
         .execute(exec)
         .await?;

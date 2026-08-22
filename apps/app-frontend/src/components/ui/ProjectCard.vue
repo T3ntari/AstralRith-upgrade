@@ -86,7 +86,7 @@ const toTransparent = computed(() => {
     </div>
     <div class="flex flex-col justify-center gap-2 px-4 py-3">
       <div class="flex gap-2 items-center">
-        <Avatar size="48px" :src="project.icon_url" />
+        <Avatar size="48px" :src="project.icon_url" loading="lazy" />
         <div class="h-full flex items-center font-bold text-contrast leading-normal">
           <span class="line-clamp-2">{{ project.title }}</span>
         </div>

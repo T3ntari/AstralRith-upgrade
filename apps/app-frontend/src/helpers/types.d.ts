@@ -99,6 +99,7 @@ type AppSettings = {
   hide_on_process_start: boolean
   hooks: Hooks
   gpu_optimizations: boolean
+  efficient_mode: boolean
 
   custom_dir?: string
   prev_custom_dir?: string

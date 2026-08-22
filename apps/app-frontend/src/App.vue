@@ -122,6 +122,7 @@ async function setupApp() {
     toggle_sidebar,
     developer_mode,
     feature_flags,
+    efficient_mode,
   } = settings
 
 
@@ -149,6 +150,7 @@ async function setupApp() {
   themeStore.toggleSidebar = toggle_sidebar
   themeStore.devMode = developer_mode
   themeStore.featureFlags = feature_flags
+  themeStore.setEfficientMode(efficient_mode)
 
   isMaximized.value = maximized
 

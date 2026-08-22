@@ -49,7 +49,6 @@ const actualInstances = computed(() =>
 
 const modsRow = ref(null)
 const instanceOptions = ref(null)
-const instanceComponents = ref(null)
 const rows = ref(null)
 const deleteConfirmModal = ref(null)
 
@@ -264,7 +263,6 @@ onUnmounted(() => {
         <ProjectCard
           v-for="project in row.instances.slice(0, maxProjectsPerRow)"
           :key="project?.project_id"
-          ref="instanceComponents"
           class="item"
           :project="project"
           @contextmenu.prevent.stop="(event) => handleProjectClick(event, project)"

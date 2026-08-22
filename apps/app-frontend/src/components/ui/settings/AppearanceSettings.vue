@@ -56,6 +56,27 @@ watch(
     />
   </div>
 
+  <div class="mt-4 flex items-center justify-between">
+    <div>
+      <h2 class="m-0 text-lg font-extrabold text-contrast">Efficient mode</h2>
+      <p class="m-0 mt-1">
+        For low-end devices. Disables shadows, blurs, gradients and animations so the launcher
+        stays fast and smooth on weaker hardware.
+      </p>
+    </div>
+    <Toggle
+      id="efficient-mode"
+      :model-value="settings.efficient_mode"
+      :checked="settings.efficient_mode"
+      @update:model-value="
+        (e) => {
+          settings.efficient_mode = e
+          themeStore.setEfficientMode(e)
+        }
+      "
+    />
+  </div>
+
   <div v-if="os !== 'MacOS'" class="mt-4 flex items-center justify-between gap-4">
     <div>
       <h2 class="m-0 text-lg font-extrabold text-contrast">Native Decorations</h2>

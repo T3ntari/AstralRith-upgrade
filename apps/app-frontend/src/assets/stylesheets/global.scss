@@ -219,3 +219,32 @@ button {
 }
 
 @import '@modrinth/assets/omorphia.scss';
+
+/* ── Efficient Mode: for low-end devices ──────────────────────────────────── */
+/* Disables GPU-expensive effects: shadows, blurs, gradients, animations.     */
+html.efficient-mode {
+  /* Kill all shadows — the single biggest GPU cost on weak GPUs */
+  * {
+    box-shadow: none !important;
+    text-shadow: none !important;
+    filter: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  /* Flatten gradients to solid colors */
+  .app-sidebar {
+    background: var(--color-raised-bg) !important;
+  }
+
+  /* Disable non-essential transitions and animations */
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+}
+
