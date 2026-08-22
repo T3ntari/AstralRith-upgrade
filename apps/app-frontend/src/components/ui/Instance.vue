@@ -50,6 +50,23 @@ const seeInstance = async () => {
   await router.push(`/instance/${encodeURIComponent(props.instance.path)}`)
 }
 
+let checkProcessTimeout = null
+let lastCheckTime = 0
+const CHECK_DEBOUNCE_MS = 300
+const CHECK_MIN_INTERVAL_MS = 1000
+
+const checkProcess = async () => {
+  const now = Date.now()
+  if (now - lastCheckTime < CHECK_MIN_INTERVAL_MS) return
+
+  if (checkProcessTimeout) clearTimeout(checkProcessTimeout)
+  checkProcessTimeout = setTimeout(async () => {
+    lastCheckTime = Date.now()
+    const runningProcesses = await get_by_profile_path(props.instance.path).catch(handleError)
+    playing.value = runningProcesses.length > 0
+  }, CHECK_DEBOUNCE_MS)
+}
+
 const checkProcess = async () => {
   const runningProcesses = await get_by_profile_path(props.instance.path).catch(handleError)
 

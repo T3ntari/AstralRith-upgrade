@@ -131,4 +131,49 @@ img {
   box-shadow: var(--shadow-card);
 }
 
+/* Performance: GPU-accelerate common animated elements */
+.app-viewport,
+.app-sidebar,
+.app-grid-layout,
+.app-grid-statusbar,
+.app-grid-navbar {
+  will-change: auto;
+  transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+/* Performance: optimize scrollbar rendering */
+*::-webkit-scrollbar {
+  will-change: auto;
+}
+
+/* Performance: reduce compositing layers for transitions */
+.transition-all {
+  will-change: transform, opacity;
+}
+
+/* Performance: GPU-accelerate spinners */
+.animate-spin {
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+/* Performance: reduce paint for hover states */
+.button-base,
+.card-shadow {
+  will-change: auto;
+  transition: filter 0.15s ease, transform 0.15s ease;
+}
+
+/* Performance: optimize grid rendering */
+.instances {
+  contain: layout style;
+}
+
+/* Performance: reduce reflow for absolutely positioned elements */
+.absolute {
+  will-change: auto;
+}
+
 @import '@modrinth/assets/omorphia.scss';

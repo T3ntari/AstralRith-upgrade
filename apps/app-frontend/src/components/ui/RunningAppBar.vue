@@ -162,6 +162,12 @@ const refresh = async () => {
   }
 }
 
+let refreshDebounce = null
+const debouncedRefresh = async () => {
+  if (refreshDebounce) clearTimeout(refreshDebounce)
+  refreshDebounce = setTimeout(() => refresh(), 200)
+}
+
 await refresh()
 
 const offline = ref(!navigator.onLine)
@@ -173,7 +179,7 @@ window.addEventListener('online', () => {
 })
 
 const unlistenProcess = await process_listener(async () => {
-  await refresh()
+  await debouncedRefresh()
 })
 
 const stop = async (process) => {

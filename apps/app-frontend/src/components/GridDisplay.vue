@@ -16,9 +16,13 @@ import { Button, DropdownSelect } from '@modrinth/ui'
 import { formatCategoryHeader } from '@modrinth/utils'
 import ContextMenu from '@/components/ui/ContextMenu.vue'
 import dayjs from 'dayjs'
-import { duplicate, remove } from '@/helpers/profile.js'
+import { duplicate, remove, run, kill } from '@/helpers/profile.js'
 import { handleError } from '@/store/notifications.js'
 import ConfirmModalWrapper from '@/components/ui/modal/ConfirmModalWrapper.vue'
+import { showProfileInFolder } from '@/helpers/utils.js'
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
 
 const props = defineProps({
   instances: {
@@ -33,16 +37,12 @@ const props = defineProps({
   },
 })
 const instanceOptions = ref(null)
-const instanceComponents = ref(null)
 
 const currentDeleteInstance = ref(null)
 const confirmModal = ref(null)
 
 async function deleteProfile() {
   if (currentDeleteInstance.value) {
-    instanceComponents.value = instanceComponents.value.filter(
-      (x) => x.instance.path !== currentDeleteInstance.value,
-    )
     await remove(currentDeleteInstance.value).catch(handleError)
   }
 }
@@ -52,7 +52,7 @@ async function duplicateProfile(p) {
 }
 
 const handleRightClick = (event, profilePathId) => {
-  const item = instanceComponents.value.find((x) => x.instance.path === profilePathId)
+  const item = props.instances.find((x) => x.path === profilePathId)
   const baseOptions = [
     { name: 'add_content' },
     { type: 'divider' },
@@ -70,50 +70,46 @@ const handleRightClick = (event, profilePathId) => {
   instanceOptions.value.showMenu(
     event,
     item,
-    item.playing
-      ? [
-          {
-            name: 'stop',
-            color: 'danger',
-          },
-          ...baseOptions,
-        ]
-      : [
-          {
-            name: 'play',
-            color: 'primary',
-          },
-          ...baseOptions,
-        ],
+    [
+      {
+        name: 'play',
+        color: 'primary',
+      },
+      ...baseOptions,
+    ],
   )
 }
 
 const handleOptionsClick = async (args) => {
+  const item = args.item
   switch (args.option) {
     case 'play':
-      args.item.play(null, 'InstanceGridContextMenu')
+      await run(item.path).catch(handleError)
       break
     case 'stop':
-      args.item.stop(null, 'InstanceGridContextMenu')
+      await kill(item.path).catch(handleError)
       break
     case 'add_content':
-      await args.item.addContent()
+      await router.push({
+        path: `/browse/${item.loader === 'vanilla' ? 'datapack' : 'mod'}`,
+        query: { i: item.path },
+      })
       break
     case 'edit':
-      await args.item.seeInstance()
+      await router.push(`/instance/${encodeURIComponent(item.path)}`)
       break
     case 'duplicate':
-      if (args.item.instance.install_stage == 'installed')
-        await duplicateProfile(args.item.instance.path)
+      if (item.install_stage == 'installed')
+        await duplicateProfile(item.path)
       break
     case 'open':
-      await args.item.openFolder()
+      await showProfileInFolder(item.path)
       break
     case 'copy':
-      await navigator.clipboard.writeText(args.item.instance.path)
+      await navigator.clipboard.writeText(item.path)
       break
     case 'delete':
-      currentDeleteInstance.value = args.item.instance.path
+      currentDeleteInstance.value = item.path
       confirmModal.value.show()
       break
   }
@@ -264,7 +260,6 @@ const filteredResults = computed(() => {
     <section class="instances">
       <Instance
         v-for="instance in instanceSection.value"
-        ref="instanceComponents"
         :key="instance.path + instance.install_stage"
         :instance="instance"
         @contextmenu.prevent.stop="(event) => handleRightClick(event, instance.path)"

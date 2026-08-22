@@ -119,7 +119,7 @@ function fakeLoadingIncrease() {
     setTimeout(() => {
       loadingProgress.value += 1
       fakeLoadingIncrease()
-    }, 5)
+    }, 30)
   }
 }
 
