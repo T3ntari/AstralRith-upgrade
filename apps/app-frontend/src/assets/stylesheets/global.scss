@@ -9,6 +9,16 @@
   --expanded-view-width: calc(100% - 13rem);
 }
 
+/* CurseForge mode: orange brand accents while keeping the app's own UI style */
+html.cf-mode {
+  --color-brand: #f16436;
+  --color-brand-highlight: rgba(241, 100, 54, 0.25);
+  --color-brand-shadow: rgba(241, 100, 54, 0.7);
+  --color-brand-hover: #ff8a5c;
+  --color-brand-fade: rgba(241, 100, 54, 0.1);
+  --color-brand-gradient: linear-gradient(135deg, #f16436 0%, #ff9a5c 100%);
+}
+
 body {
   position: fixed;
   width: 100%;

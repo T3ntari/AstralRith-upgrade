@@ -5,7 +5,6 @@ import { createPinia } from 'pinia'
 import FloatingVue from 'floating-vue'
 import 'floating-vue/dist/style.css'
 import { createPlugin } from '@vintl/vintl/plugin'
-import * as Sentry from '@sentry/vue'
 
 const VIntlPlugin = createPlugin({
   controllerOpts: {
@@ -26,14 +25,10 @@ const VIntlPlugin = createPlugin({
 
 const pinia = createPinia()
 
-let app = createApp(App)
+// Restore the user's last content-source choice (Modrinth vs CurseForge)
+document.documentElement.classList.toggle('cf-mode', localStorage.getItem('ar.cf_mode') === 'true')
 
-Sentry.init({
-  app,
-  dsn: 'https://9508775ee5034536bc70433f5f531dd4@o485889.ingest.us.sentry.io/4504579615227904',
-  integrations: [Sentry.browserTracingIntegration({ router })],
-  tracesSampleRate: 0.1,
-})
+let app = createApp(App)
 
 app.use(router)
 app.use(pinia)

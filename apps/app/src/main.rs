@@ -2,6 +2,7 @@
     all(not(debug_assertions), target_os = "windows"),
     windows_subsystem = "windows"
 )]
+#![recursion_limit = "256"]
 
 use native_dialog::{MessageDialog, MessageType};
 use tauri::{Listener, Manager};
@@ -190,6 +191,7 @@ fn main() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_http::init())
         .plugin(
             tauri_plugin_window_state::Builder::default()
                 .with_filename(
@@ -260,6 +262,8 @@ fn main() {
 
     builder = builder
         .plugin(api::auth::init())
+        .plugin(api::cf::init())
+        .plugin(api::gemini::init())
         .plugin(api::mr_auth::init())
         .plugin(api::import::init())
         .plugin(api::logs::init())

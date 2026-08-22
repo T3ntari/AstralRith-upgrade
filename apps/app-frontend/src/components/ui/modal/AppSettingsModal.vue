@@ -21,6 +21,7 @@ import { getVersion } from '@tauri-apps/api/app'
 import { version as getOsVersion, platform as getOsPlatform } from '@tauri-apps/plugin-os'
 import { useTheming } from '@/store/state'
 import FeatureFlagSettings from '@/components/ui/settings/FeatureFlagSettings.vue'
+import CurseForgeSettings from '@/components/ui/settings/CurseForgeSettings.vue'
 import ModalWrapper from '@/components/ui/modal/ModalWrapper.vue'
 import { get, set } from '@/helpers/settings'
 
@@ -75,6 +76,14 @@ const tabs = [
     }),
     icon: GaugeIcon,
     content: ResourceManagementSettings,
+  },
+  {
+    name: defineMessage({
+      id: 'app.settings.tabs.curseforge',
+      defaultMessage: 'CurseForge',
+    }),
+    icon: SettingsIcon,
+    content: CurseForgeSettings,
   },
   {
     name: defineMessage({

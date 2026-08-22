@@ -333,6 +333,8 @@ pub struct VersionFile {
 pub enum FileType {
     RequiredResourcePack,
     OptionalResourcePack,
+    SourcesJar,
+    Featureless,
     Unknown,
 }
 

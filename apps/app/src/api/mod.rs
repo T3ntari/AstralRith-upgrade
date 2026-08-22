@@ -3,6 +3,8 @@ use serde::{Serialize, Serializer};
 use thiserror::Error;
 
 pub mod auth;
+pub mod cf;
+pub mod gemini;
 pub mod import;
 pub mod jre;
 pub mod logs;
@@ -40,6 +42,9 @@ pub enum TheseusSerializableError {
 
     #[error("Tauri error: {0}")]
     Tauri(#[from] tauri::Error),
+
+    #[error("HTTP error: {0}")]
+    Reqwest(#[from] tauri_plugin_http::reqwest::Error),
 
     #[cfg(feature = "updater")]
     #[error("Tauri updater error: {0}")]
@@ -95,11 +100,13 @@ macro_rules! impl_serialize {
 impl_serialize! {
     IO,
     Tauri,
+    Reqwest,
 }
 
 #[cfg(feature = "updater")]
 impl_serialize! {
     IO,
     Tauri,
+    Reqwest,
     TauriUpdater,
 }

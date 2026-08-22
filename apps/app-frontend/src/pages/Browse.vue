@@ -27,6 +27,25 @@ import InstanceIndicator from '@/components/ui/InstanceIndicator.vue'
 import { defineMessages, useVIntl } from '@vintl/vintl'
 import ContextMenu from '@/components/ui/ContextMenu.vue'
 import { openUrl } from '@tauri-apps/plugin-opener'
+import ContentSourceToggle from '@/components/ui/ContentSourceToggle.vue'
+import CfSearchCard from '@/components/ui/CfSearchCard.vue'
+import CfInstallModal from '@/components/ui/CfInstallModal.vue'
+import {
+  getCfMode,
+  setCfMode,
+  getCfApiKey,
+  setCfApiKey,
+  searchMods,
+  getCategories,
+  getGameVersions,
+  getModloaders,
+  getFileDownloadUrl,
+  loaderIdForPlatform,
+  classIdForProjectType,
+  CF_SORT_FIELDS,
+  CF_LOADER_NAMES,
+} from '@/helpers/curseforge.js'
+import { invoke } from '@tauri-apps/api/core'
 
 const { formatMessage } = useVIntl()
 
@@ -71,12 +90,6 @@ const newlyInstalled = ref([])
 
 const PERSISTENT_QUERY_PARAMS = ['i', 'ai']
 
-await updateInstanceContext()
-
-watch(route, () => {
-  updateInstanceContext()
-})
-
 async function updateInstanceContext() {
   if (route.query.i) {
     ;[instance.value, instanceProjects.value] = await Promise.all([
@@ -84,6 +97,17 @@ async function updateInstanceContext() {
       getInstanceProjects(route.query.i).catch(handleError),
     ])
     newlyInstalled.value = []
+
+    if (isCurseForge.value && instance.value) {
+      cfGameVersion.value = {
+        name: instance.value.game_version,
+        display: instance.value.game_version,
+      }
+      cfLoader.value = {
+        name: loaderIdForPlatform(instance.value.loader),
+        display: 'Instance loader',
+      }
+    }
   }
 
   if (route.query.ai && !(projectTypes.value.length === 1 && projectTypes.value[0] === 'modpack')) {
@@ -168,6 +192,191 @@ window.addEventListener('online', () => {
   offline.value = false
 })
 
+// ----- CurseForge mode -----
+const isCurseForge = ref(getCfMode())
+const cfApiKey = ref(getCfApiKey())
+const cfKeyInput = ref('')
+const showCfKeyPrompt = computed(() => isCurseForge.value && !cfApiKey.value)
+
+const cfCategories = ref([])
+const cfGameVersions = ref([])
+const cfLoaderList = ref([])
+const cfCategory = ref({ name: '', display: 'Any category' })
+const cfGameVersion = ref({ name: '', display: 'Any version' })
+const cfLoader = ref({ name: 0, display: 'Any loader' })
+const cfSortField = ref({ name: 2, display: 'Popularity' })
+const cfResults = shallowRef([])
+const cfTotalHits = ref(0)
+const cfLoading = ref(false)
+const cfPage = ref(0)
+const cfPageSize = 20
+const cfInstalling = ref('')
+const cfInstalled = ref([])
+
+const cfSortOptions = Object.entries(CF_SORT_FIELDS).map(([name, display]) => ({
+  name: Number(name),
+  display,
+}))
+
+const cfLoaderOptions = computed(() => [
+  { name: 0, display: 'Any loader' },
+  ...cfLoaderList.value
+    .map((loader) => ({
+      name: loader.modLoaderType,
+      display:
+        CF_LOADER_NAMES[loader.modLoaderType] ?? loader.name ?? `Loader ${loader.modLoaderType}`,
+    }))
+    .filter((opt, index, arr) => arr.findIndex((o) => o.name === opt.name) === index),
+])
+
+const cfCategoryOptions = computed(() => [
+  { name: '', display: 'Any category' },
+  ...cfCategories.value.map((cat) => ({ name: cat.id, display: cat.name })),
+])
+
+const cfGameVersionOptions = computed(() => [
+  { name: '', display: 'Any version' },
+  ...cfGameVersions.value.map((v) => ({ name: v, display: v })),
+])
+
+const cfPageCount = computed(() => Math.max(1, Math.ceil(cfTotalHits.value / cfPageSize)))
+
+watch(isCurseForge, async (enabled) => {
+  setCfMode(enabled)
+  if (enabled) {
+    await loadCfData()
+    cfPage.value = 0
+    await cfSearch()
+  }
+})
+
+watch(
+  () => route.params.projectType,
+  async () => {
+    if (!isCurseForge.value) return
+    cfPage.value = 0
+    await loadCfData()
+    await cfSearch()
+  },
+)
+
+watch([cfSortField, cfGameVersion, cfLoader, cfCategory, cfPage], () => {
+  if (!isCurseForge.value) return
+  cfSearch()
+})
+
+watch(
+  () => query.value,
+  () => {
+    if (!isCurseForge.value) return
+    cfPage.value = 0
+  },
+)
+
+// Load CurseForge data on first render if the mode is already enabled
+if (isCurseForge.value && cfApiKey.value) {
+  await loadCfData()
+  await cfSearch()
+}
+
+await updateInstanceContext()
+
+watch(route, () => {
+  updateInstanceContext()
+})
+
+async function loadCfData() {
+  const [cats, versions, loaders] = await Promise.all([
+    getCategories(classIdForProjectType(projectType.value)).catch(() => []),
+    getGameVersions().catch(() => []),
+    getModloaders().catch(() => []),
+  ])
+  cfCategories.value = cats ?? []
+  cfGameVersions.value = versions ?? []
+  cfLoaderList.value = loaders ?? []
+}
+
+async function cfSearch() {
+  if (!cfApiKey.value) {
+    cfResults.value = []
+    cfTotalHits.value = 0
+    return
+  }
+  cfLoading.value = true
+  try {
+    const { results, totalCount } = await searchMods({
+      projectType: projectType.value,
+      query: query.value,
+      page: cfPage.value,
+      pageSize: cfPageSize,
+      sortField: cfSortField.value?.name ?? 2,
+      gameVersion: cfGameVersion.value?.name ?? '',
+      modLoaderType: cfLoader.value?.name ?? 0,
+      categoryId: cfCategory.value?.name || undefined,
+    })
+    cfResults.value = results
+    cfTotalHits.value = totalCount
+  } catch (err) {
+    console.error('CurseForge search failed', err)
+    cfResults.value = []
+    cfTotalHits.value = 0
+  } finally {
+    cfLoading.value = false
+  }
+}
+
+async function saveCfKey() {
+  const trimmed = cfKeyInput.value.trim()
+  if (!trimmed) return
+  setCfApiKey(trimmed)
+  cfApiKey.value = trimmed
+  cfKeyInput.value = ''
+  await loadCfData()
+  await cfSearch()
+}
+
+const cfPendingMod = ref(null)
+
+async function handleCfInstall(mod) {
+  if (!instance.value || cfInstalling.value) return
+  cfPendingMod.value = mod
+  cfInstallModal.value?.show()
+}
+
+async function cfInstallSelectedFile(file) {
+  const mod = cfPendingMod.value
+  if (!mod || !instance.value || cfInstalling.value) return
+  const cfId = mod.id
+  cfInstalling.value = cfId
+  try {
+    if (projectType.value === 'modpack') {
+      const url = file.downloadUrl ?? (await getFileDownloadUrl(cfId, file.id))
+      await invoke('plugin:cf|cf_install_modpack', {
+        profilePath: instance.value.path,
+        packUrl: url,
+        packName: mod.name,
+        apiKey: cfApiKey.value,
+      })
+    } else {
+      const url = file.downloadUrl ?? (await getFileDownloadUrl(cfId, file.id))
+      await invoke('plugin:cf|cf_install_mod', {
+        profilePath: instance.value.path,
+        fileUrl: url,
+        fileName: file.fileName,
+        displayName: mod.name,
+        fileLength: file.fileLength,
+      })
+    }
+    cfInstalled.value.push(String(cfId))
+  } catch (err) {
+    console.error('Failed to install CurseForge content', err)
+    handleError({ message: `Failed to install ${mod.name}: ${err.message}` })
+  } finally {
+    cfInstalling.value = ''
+    cfPendingMod.value = null
+  }
+}
+
 const breadcrumbs = useBreadcrumbs()
 breadcrumbs.setContext({ name: 'Discover content', link: route.path, query: route.query })
 
@@ -200,6 +409,7 @@ watch(requestParams, () => {
 })
 
 async function refreshSearch() {
+  if (isCurseForge.value) return
   let rawResults = await get_search_results(requestParams.value)
   if (!rawResults) {
     rawResults = {
@@ -381,7 +591,7 @@ await refreshSearch()
 </script>
 
 <template>
-  <Teleport v-if="filters" to="#sidebar-teleport-target">
+  <Teleport v-if="filters && !isCurseForge" to="#sidebar-teleport-target">
     <div
       v-if="instance"
       class="border-0 border-b-[1px] p-4 last:border-b-0 border-[--brand-gradient-border] border-solid"
@@ -428,6 +638,55 @@ await refreshSearch()
       <h1 class="m-0 mb-1 text-xl">Install content to instance</h1>
     </template>
     <NavTabs :links="selectableProjectTypes" />
+    <div class="flex justify-between items-center gap-3 flex-wrap">
+      <div v-if="isCurseForge && !showCfKeyPrompt" class="flex gap-2 flex-wrap">
+        <DropdownSelect
+          v-slot="{ selected }"
+          v-model="cfSortField"
+          name="Sort by"
+          :options="cfSortOptions"
+          :display-name="(option) => option?.display"
+          class="max-w-[12rem]"
+        >
+          <span class="font-semibold text-primary">Sort: </span>
+          <span class="font-semibold text-secondary">{{ selected }}</span>
+        </DropdownSelect>
+        <DropdownSelect
+          v-slot="{ selected }"
+          v-model="cfGameVersion"
+          name="Game version"
+          :options="cfGameVersionOptions"
+          :display-name="(option) => option?.display"
+          class="max-w-[11rem]"
+        >
+          <span class="font-semibold text-primary">Version: </span>
+          <span class="font-semibold text-secondary">{{ selected }}</span>
+        </DropdownSelect>
+        <DropdownSelect
+          v-slot="{ selected }"
+          v-model="cfLoader"
+          name="Loader"
+          :options="cfLoaderOptions"
+          :display-name="(option) => option?.display"
+          class="max-w-[10rem]"
+        >
+          <span class="font-semibold text-primary">Loader: </span>
+          <span class="font-semibold text-secondary">{{ selected }}</span>
+        </DropdownSelect>
+        <DropdownSelect
+          v-slot="{ selected }"
+          v-model="cfCategory"
+          name="Category"
+          :options="cfCategoryOptions"
+          :display-name="(option) => option?.display"
+          class="max-w-[12rem]"
+        >
+          <span class="font-semibold text-primary">Category: </span>
+          <span class="font-semibold text-secondary">{{ selected }}</span>
+        </DropdownSelect>
+      </div>
+      <ContentSourceToggle v-model="isCurseForge" class="ml-auto" />
+    </div>
     <div class="iconified-input">
       <SearchIcon aria-hidden="true" class="text-lg" />
       <input
@@ -436,13 +695,15 @@ await refreshSearch()
         autocomplete="off"
         spellcheck="false"
         type="text"
-        :placeholder="`Search ${projectType}s...`"
+        :placeholder="
+          isCurseForge ? `Search ${projectType}s on CurseForge...` : `Search ${projectType}s...`
+        "
       />
       <Button v-if="query" class="r-btn" @click="() => clearSearch()">
         <XIcon />
       </Button>
     </div>
-    <div class="flex gap-2">
+    <div v-if="!isCurseForge" class="flex gap-2">
       <DropdownSelect
         v-slot="{ selected }"
         v-model="currentSortType"
@@ -466,15 +727,69 @@ await refreshSearch()
       </DropdownSelect>
       <Pagination :page="currentPage" :count="pageCount" class="ml-auto" @switch-page="setPage" />
     </div>
-    <SearchFilterControl
-      v-model:selected-filters="currentFilters"
-      :filters="filters.filter((f) => f.display !== 'none')"
-      :provided-filters="instanceFilters"
-      :overridden-provided-filter-types="overriddenProvidedFilterTypes"
-      :provided-message="messages.providedByInstance"
-    />
+    <div v-if="!isCurseForge">
+      <SearchFilterControl
+        v-model:selected-filters="currentFilters"
+        :filters="filters.filter((f) => f.display !== 'none')"
+        :provided-filters="instanceFilters"
+        :overridden-provided-filter-types="overriddenProvidedFilterTypes"
+        :provided-message="messages.providedByInstance"
+      />
+    </div>
     <div class="search">
-      <section v-if="loading" class="offline">
+      <section v-if="isCurseForge && showCfKeyPrompt" class="offline">
+        <div class="cf-key-card card-shadow p-6 bg-bg-raised rounded-xl max-w-[32rem] text-left">
+          <h2 class="text-xl font-bold m-0 mb-2 text-contrast">CurseForge mode needs an API key</h2>
+          <p class="text-secondary m-0 mb-4">
+            CurseForge requires an API key (free, from
+            <a class="text-primary underline" href="https://console.curseforge.com" target="_blank"
+              >console.curseforge.com</a
+            >) to search and install content. Your key is stored only on this device and can be
+            changed later in Settings.
+          </p>
+          <input
+            v-model="cfKeyInput"
+            type="password"
+            class="h-12 w-full card-shadow mb-4 px-4 rounded-xl"
+            placeholder="Paste your CurseForge API key..."
+            @keyup.enter="saveCfKey"
+          />
+          <div class="flex gap-2">
+            <Button color="primary" @click="saveCfKey">Enable CurseForge</Button>
+            <Button @click="isCurseForge = false">Back to Modrinth</Button>
+          </div>
+        </div>
+      </section>
+      <section v-else-if="isCurseForge && cfLoading" class="offline">
+        <LoadingIndicator />
+      </section>
+      <section v-else-if="isCurseForge && cfResults.length === 0" class="offline">
+        No CurseForge results found. Try a different search or filter.
+      </section>
+      <section
+        v-else-if="isCurseForge"
+        class="project-list display-mode--list instance-results"
+        role="list"
+      >
+        <CfSearchCard
+          v-for="mod in cfResults"
+          :key="mod.id"
+          :mod="mod"
+          :instance="instance"
+          :modpack="projectType === 'modpack'"
+          :installed="cfInstalled.includes(String(mod.id))"
+          :installing="cfInstalling === mod.id"
+          @install="handleCfInstall(mod)"
+        />
+        <CfInstallModal
+          ref="cfInstallModal"
+          :mod="cfPendingMod"
+          :instance="instance"
+          :modpack="projectType === 'modpack'"
+          @install="cfInstallSelectedFile"
+        />
+      </section>
+      <section v-else-if="loading" class="offline">
         <LoadingIndicator />
       </section>
       <section v-else-if="offline && results.total_hits === 0" class="offline">
@@ -512,10 +827,19 @@ await refreshSearch()
       </section>
       <div class="flex justify-end">
         <pagination
-          :page="currentPage"
-          :count="pageCount"
+          :page="isCurseForge ? cfPage + 1 : currentPage"
+          :count="isCurseForge ? cfPageCount : pageCount"
           class="pagination-after"
-          @switch-page="setPage"
+          @switch-page="
+            (page) => {
+              if (isCurseForge) {
+                cfPage = page - 1
+                onSearchChangeToTop()
+              } else {
+                setPage(page)
+              }
+            }
+          "
         />
       </div>
     </div>

@@ -27,6 +27,14 @@ export default new createRouter({
       },
     },
     {
+      path: '/composer',
+      name: 'AI Composer',
+      component: Pages.Composer,
+      meta: {
+        breadcrumb: [{ name: 'AI Composer' }],
+      },
+    },
+    {
       path: '/library',
       name: 'Library',
       component: Library.Index,

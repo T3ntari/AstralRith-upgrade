@@ -24,6 +24,26 @@ fn main() {
                     ),
             )
             .plugin(
+                "cf",
+                InlinedPlugin::new()
+                    .commands(&["cf_install_mod", "cf_install_modpack"])
+                    .default_permission(
+                        DefaultPermissionRule::AllowAllCommands,
+                    ),
+            )
+            .plugin(
+                "gemini",
+                InlinedPlugin::new()
+                    .commands(&[
+                        "gemini_list_models",
+                        "gemini_generate_start",
+                        "gemini_generate_cancel",
+                    ])
+                    .default_permission(
+                        DefaultPermissionRule::AllowAllCommands,
+                    ),
+            )
+            .plugin(
                 "cache",
                 InlinedPlugin::new()
                     .commands(&[

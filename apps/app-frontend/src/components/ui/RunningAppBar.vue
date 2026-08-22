@@ -80,6 +80,7 @@
         <ProgressBar :progress="Math.floor((100 * loadingBar.current) / loadingBar.total)" />
         <div class="row">
           {{ Math.floor((100 * loadingBar.current) / loadingBar.total) }}% {{ loadingBar.message }}
+          <span v-if="loadingBar.speed" class="speed">• {{ loadingBar.speed }}</span>
         </div>
       </div>
     </Card>
@@ -135,8 +136,6 @@ const approveUpdate = async () => {
   confirmUpdate.value.hide()
   await getRemote(true, true)
 }
-
-await getRemote(true, false)
 
 const router = useRouter()
 const card = ref(null)
@@ -198,6 +197,30 @@ const goToTerminal = (path) => {
 
 const currentLoadingBars = ref([])
 
+// Tracks the previous sample (bytes + timestamp) of each loading bar to compute download speed
+const downloadSpeedSamples = new Map()
+const DOWNLOAD_BAR_TYPES = new Set([
+  'pack_file_download',
+  'pack_download',
+  'minecraft_download',
+  'java_download',
+  'launcher_update',
+])
+
+function formatSpeed(bytesPerSecond) {
+  if (!Number.isFinite(bytesPerSecond) || bytesPerSecond <= 0) return ''
+  if (bytesPerSecond >= 1024 * 1024 * 1024) {
+    return `${(bytesPerSecond / (1024 * 1024 * 1024)).toFixed(2)} GB/s`
+  }
+  if (bytesPerSecond >= 1024 * 1024) {
+    return `${(bytesPerSecond / (1024 * 1024)).toFixed(2)} MB/s`
+  }
+  if (bytesPerSecond >= 1024) {
+    return `${(bytesPerSecond / 1024).toFixed(1)} KB/s`
+  }
+  return `${Math.round(bytesPerSecond)} B/s`
+}
+
 const refreshInfo = async () => {
   const currentLoadingBarCount = currentLoadingBars.value.length
   currentLoadingBars.value = Object.values(await progress_bars_list().catch(handleError)).map(
@@ -210,6 +233,23 @@ const refreshInfo = async () => {
       }
       if (x.bar_type.pack_name) {
         x.title = x.bar_type.pack_name
+      }
+
+      const isDownloadBar = DOWNLOAD_BAR_TYPES.has(x.bar_type.type)
+      const now = performance.now()
+      const sample = downloadSpeedSamples.get(x.loading_bar_uuid)
+
+      if (isDownloadBar && x.total > 0) {
+        if (sample && now - sample.time > 200) {
+          const deltaBytes = x.current - sample.current
+          const deltaSeconds = (now - sample.time) / 1000
+          if (deltaBytes >= 0 && deltaSeconds > 0) {
+            x.speed = formatSpeed(deltaBytes / deltaSeconds)
+          }
+        }
+        downloadSpeedSamples.set(x.loading_bar_uuid, { current: x.current, time: now })
+      } else {
+        x.speed = ''
       }
 
       return x
@@ -230,6 +270,14 @@ const refreshInfo = async () => {
     showCard.value = false
   } else if (currentLoadingBarCount < currentLoadingBars.value.length) {
     showCard.value = true
+  }
+
+  // Drop speed samples for bars that no longer exist
+  const activeIds = new Set(currentLoadingBars.value.map((x) => x.loading_bar_uuid))
+  for (const id of downloadSpeedSamples.keys()) {
+    if (!activeIds.has(id)) {
+      downloadSpeedSamples.delete(id)
+    }
   }
 }
 
@@ -508,6 +556,14 @@ onBeforeUnmount(() => {
     flex-direction: row;
     align-items: center;
     gap: 0.5rem;
+
+    .speed {
+      margin-left: auto;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--color-brand);
+      white-space: nowrap;
+    }
   }
 }
 

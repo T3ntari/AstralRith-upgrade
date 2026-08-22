@@ -25,6 +25,7 @@ tauri-plugin-opener = "2.2.1"
 tauri-plugin-dialog = "2.2.0"
 tauri-plugin-updater = { version = "2.3.0" }
 tauri-plugin-single-instance = { version = "2.2.0" }
+tauri-plugin-http = { version = "2", features = ["unsafe-headers"] }
 
 tokio = { version = "1", features = ["full"] }
 thiserror = "1.0"

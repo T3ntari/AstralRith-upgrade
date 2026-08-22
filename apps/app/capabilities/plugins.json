@@ -21,6 +21,8 @@
     "window-state:allow-save-window-state",
 
     "auth:default",
+    "cf:default",
+    "gemini:default",
     "import:default",
     "jre:default",
     "logs:default",
@@ -34,6 +36,10 @@
     "settings:default",
     "tags:default",
     "utils:default",
-    "friends:default"
+    "friends:default",
+    {
+      "identifier": "http:default",
+      "allow": [{ "url": "https://**" }, { "url": "http://**" }]
+    }
   ]
 }

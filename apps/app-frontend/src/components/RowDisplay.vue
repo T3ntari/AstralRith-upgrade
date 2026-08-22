@@ -182,7 +182,7 @@ const maxProjectsPerRow = ref(1)
 
 const calculateCardsPerRow = () => {
   // Calculate how many cards fit in one row
-  const containerWidth = rows.value[0].clientWidth
+  const containerWidth = rows.value?.[0]?.clientWidth ?? 0
   // Convert container width from pixels to rem
   const containerWidthInRem =
     containerWidth / parseFloat(getComputedStyle(document.documentElement).fontSize)
@@ -207,13 +207,17 @@ const resizeObserver = ref(null)
 onMounted(() => {
   calculateCardsPerRow()
   resizeObserver.value = new ResizeObserver(calculateCardsPerRow)
-  resizeObserver.value.observe(rowContainer.value)
+  if (rowContainer.value instanceof Element) {
+    resizeObserver.value.observe(rowContainer.value)
+  }
   window.addEventListener('resize', calculateCardsPerRow)
 })
 
 onUnmounted(() => {
   window.removeEventListener('resize', calculateCardsPerRow)
-  resizeObserver.value.unobserve(rowContainer.value)
+  if (resizeObserver.value && rowContainer.value instanceof Element) {
+    resizeObserver.value.unobserve(rowContainer.value)
+  }
 })
 </script>
 
