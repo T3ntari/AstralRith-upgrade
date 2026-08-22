@@ -387,7 +387,8 @@ main() {
     log "Repo: $REPO"
     log "Target OS: $OS"
 
-    [[ "$FORCE" == true ]] && remove_old
+    # Always clean old installation first (replaces old version)
+    remove_old
     fetch_release
     select_asset
     download_asset
