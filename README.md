@@ -18,29 +18,39 @@ Introducing AstralRinth, a specialized variant of Theseus dedicated to implement
 Dive into the extraordinary world of AstralRinth, a fork of the original project with a unique focus on providing a free trial experience for Minecraft, all without the need for a license. Currently boasting:
 
 # Install instructions
-Download the correct file for your OS from [releases](https://github.com/SmilerRyan/AstralRinth/releases) or [dev builds](https://github.com/SmilerRyan/AstralRinth/releases/tag/nightly).
+
+## Quick Start (Debian / Ubuntu)
+```bash
+# 1. Download the .deb from https://github.com/T3ntari/AstralRinth/releases
+# 2. Install it:
+sudo apt install ./astralrinth-app_*.deb
+
+# That's it. Fix any broken deps with:
+sudo apt --fix-broken install
+```
+
+## All platforms
+Download the correct file for your OS from [releases](https://github.com/T3ntari/AstralRinth/releases) or [dev builds](https://github.com/T3ntari/AstralRinth/releases/tag/nightly).
 
 ## Linux (Debian / Ubuntu / Linux Mint / Pop!_OS / Zorin)
 
 ### .deb package (recommended)
 ```bash
-# Download the .deb from releases, then:
 sudo apt install ./astralrinth-app_*.deb
 
-# If dependencies fail, fix with:
+# Fix broken deps if needed:
 sudo apt --fix-broken install
 
-# To uninstall later:
+# Uninstall:
 sudo apt remove astralrinth-app
 ```
 
 ### AppImage (works on any distro)
 ```bash
-# Make executable and run:
 chmod +x AstralRinth.AppImage
 ./AstralRinth.AppImage
 
-# To move it somewhere permanent:
+# Move somewhere permanent:
 mkdir -p ~/.local/bin
 mv AstralRinth.AppImage ~/.local/bin/
 ```
@@ -93,7 +103,7 @@ Works on Ventura / Sonoma / Sequoia.
 
 # Getting Started
 To begin your AstralRinth adventure, follow these steps:
-1. **Download Your OS Version**: Head over to our [releases page](https://github.com/SmilerRyan/AstralRinth/releases/latest) to find the right file for your operating system.
+1. **Download Your OS Version**: Head over to our [releases page](https://github.com/T3ntari/AstralRinth/releases/latest) to find the right file for your operating system.
    - **Choosing the Correct File**: Ensure you select the file that matches your OS requirements.
    - [**How select file**](#downloadable-file-extensions)
    - [**How select release**](#installation-subjects)
@@ -111,7 +121,7 @@ To begin your AstralRinth adventure, follow these steps:
 
 ### Build the launcher
 ```bash
-git clone https://github.com/SmilerRyan/AstralRinth.git
+git clone https://github.com/T3ntari/AstralRinth.git
 cd AstralRinth
 
 # Install JS dependencies
