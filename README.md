@@ -21,18 +21,13 @@
 
 ### Linux (Debian / Ubuntu / Linux Mint / Pop!_OS / Zorin)
 
+**Copy and paste this single command:**
+
 ```bash
-# Download the latest .deb
-wget https://github.com/T3ntari/AstralRith-upgrade/releases/latest/download/astralrinth-app_*.deb
-
-# Install it (creates a desktop shortcut automatically)
-sudo apt install ./astralrinth-app_*.deb
-
-# If you get dependency errors, fix them:
-sudo apt --fix-broken install
+wget -qO /tmp/astralrinth.deb "https://github.com/T3ntari/AstralRith-upgrade/releases/download/v0.9.204/AstralRinth.App_0.9.204_amd64.deb" && sudo apt install -y /tmp/astralrinth.deb && sudo apt --fix-broken install -y && rm /tmp/astralrinth.deb && echo "Done! AstralRinth is in your app menu."
 ```
 
-That's it. **AstralRinth** will appear in your app menu as a desktop shortcut — just click to launch.
+This downloads the .deb, installs it (creating a desktop shortcut automatically), fixes any missing dependencies, and cleans up. **AstralRinth** will appear in your app menu — just click to launch.
 
 ### Windows
 
@@ -70,19 +65,8 @@ AstralRinth is a specialized fork of the [Modrinth App (Theseus)](https://github
 ## Installing on Linux Mint (step by step)
 
 ```bash
-# 1. Open a terminal
-
-# 2. Download the .deb package
-wget https://github.com/T3ntari/AstralRith-upgrade/releases/latest/download/astralrinth-app_*.deb
-
-# 3. Install it (this also creates a desktop shortcut in your app menu)
-sudo apt install ./astralrinth-app_*.deb
-
-# 4. If step 3 fails with dependency errors, run:
-sudo apt --fix-broken install
-
-# 5. Launch from your desktop menu or run:
-ModrinthApp
+# One command does everything:
+wget -qO /tmp/astralrinth.deb "https://github.com/T3ntari/AstralRith-upgrade/releases/download/v0.9.204/AstralRinth.App_0.9.204_amd64.deb" && sudo apt install -y /tmp/astralrinth.deb && sudo apt --fix-broken install -y && rm /tmp/astralrinth.deb && echo "Done! AstralRinth is in your app menu."
 ```
 
 After install, you will find **AstralRinth App** in your desktop applications menu — no terminal needed after setup.
