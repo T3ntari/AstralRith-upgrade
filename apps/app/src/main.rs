@@ -148,6 +148,15 @@ fn restart_app(app: tauri::AppHandle) {
 // if Tauri app is called with arguments, then those arguments will be treated as commands
 // ie: deep links or filepaths for .mrpacks
 fn main() {
+    // Fix black screen on Linux: webkit2gtk DMABUF renderer causes blank/black
+    // windows on NVIDIA and some AMD GPU setups. Must be set before webview init.
+    #[cfg(target_os = "linux")]
+    {
+        if std::env::var("WEBKIT_DISABLE_DMABUF_RENDERER").is_err() {
+            std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+        }
+    }
+
     /*
         tracing is set basd on the environment variable RUST_LOG=xxx, depending on the amount of logs to show
             ERROR > WARN > INFO > DEBUG > TRACE
