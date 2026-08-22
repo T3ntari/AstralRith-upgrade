@@ -1,152 +1,150 @@
-# Navigation in this README
-- [Install instructions](#install-instructions)
-- [Features](#features)
-- [Getting started](#getting-started)
-- [Disclaimer](#disclaimer)
-- [Donate](#support-our-project-crypto-wallets)
-- [App logo](#logo)
+<p align="center">
+  <img src="https://github.com/DIDIRUS4/AstralRinth/assets/77334306/43d4acb0-546c-4dff-834d-83fb2ba6ad6f" alt="AstralRinth Logo" width="200"/>
+</p>
 
-# About Project
+<h1 align="center">AstralRinth</h1>
 
-## AstralRinth - Empowering Your Minecraft Adventure
-Welcome to AR - Fork of Modrinth, the ultimate game launcher designed to enhance your Minecraft experience through the Modrinth platform and their API. Whether you're a graphical interface enthusiast, or a developer integrating Modrinth projects, Theseus core is your gateway to a new level of Minecraft gaming.
+<p align="center">
+  <b>Empowering Your Minecraft Adventure</b><br>
+  A fork of <a href="https://github.com/modrinth/code">Modrinth (Theseus)</a> with offline auth, CurseForge support, and more.
+</p>
 
-## About Software
-Introducing AstralRinth, a specialized variant of Theseus dedicated to implementing offline authorization for an even more flexible and user-centric Minecraft Modrinth experience. Roam the Minecraft realms without the constraints of online authentication, thanks to AstralRinth.
+<p align="center">
+  <a href="https://github.com/T3ntari/AstralRith-upgrade/releases"><img src="https://img.shields.io/github/v/release/T3ntari/AstralRith-upgrade?style=flat-square&color=blue" alt="Latest Release"></a>
+  <a href="https://github.com/T3ntari/AstralRith-upgrade/blob/beta/LICENSE"><img src="https://img.shields.io/github/license/T3ntari/AstralRith-upgrade?style=flat-square&color=green" alt="License"></a>
+  <a href="https://github.com/T3ntari/AstralRith-upgrade/releases"><img src="https://img.shields.io/github/downloads/T3ntari/AstralRith-upgrade/total?style=flat-square&color=orange" alt="Downloads"></a>
+</p>
 
-## AR - Unlocking Minecraft's Boundless Horizon
-Dive into the extraordinary world of AstralRinth, a fork of the original project with a unique focus on providing a free trial experience for Minecraft, all without the need for a license. Currently boasting:
+---
 
-# Install instructions
+## Quick Start
 
-## Quick Start (Debian / Ubuntu)
+### Linux (Debian / Ubuntu / Linux Mint / Pop!_OS / Zorin)
+
 ```bash
-# 1. Download the .deb from https://github.com/T3ntari/AstralRith-upgrade/releases
-# 2. Install it:
+# Download the latest .deb
+wget https://github.com/T3ntari/AstralRith-upgrade/releases/latest/download/astralrinth-app_*.deb
+
+# Install it (creates a desktop shortcut automatically)
 sudo apt install ./astralrinth-app_*.deb
 
-# That's it. Fix any broken deps with:
+# If you get dependency errors, fix them:
 sudo apt --fix-broken install
 ```
 
-## All platforms
-Download the correct file for your OS from [releases](https://github.com/T3ntari/AstralRith-upgrade/releases) or [dev builds](https://github.com/T3ntari/AstralRith-upgrade/releases/tag/nightly).
+That's it. **AstralRinth** will appear in your app menu as a desktop shortcut — just click to launch.
 
-## Linux (Debian / Ubuntu / Linux Mint / Pop!_OS / Zorin)
+### Windows
 
-### .deb package (recommended)
-```bash
-sudo apt install ./astralrinth-app_*.deb
+Download the `.msi` from [Releases](https://github.com/T3ntari/AstralRith-upgrade/releases) and run the installer.
 
-# Fix broken deps if needed:
-sudo apt --fix-broken install
+### macOS
 
-# Uninstall:
-sudo apt remove astralrinth-app
-```
+Download the `.dmg` from [Releases](https://github.com/T3ntari/AstralRith-upgrade/releases), open it, and drag **AstralRinth** to your Applications folder.
 
-### AppImage (works on any distro)
+### Any Linux (AppImage)
+
 ```bash
 chmod +x AstralRinth.AppImage
 ./AstralRinth.AppImage
-
-# Move somewhere permanent:
-mkdir -p ~/.local/bin
-mv AstralRinth.AppImage ~/.local/bin/
 ```
 
-### .tar.gz
+---
+
+## What is AstralRinth?
+
+AstralRinth is a specialized fork of the [Modrinth App (Theseus)](https://github.com/modrinth/code) that adds:
+
+| Feature | Description |
+|---|---|
+| **Offline auth** | Play without a license — login with a pirate account |
+| **CurseForge integration** | Browse and install CurseForge modpacks directly |
+| **No ads** | All Modrinth advertisements removed |
+| **No telemetry** | Statistics collection hard-patched off |
+| **Discord RPC** | Rich presence with random messages, play timer, AFK counter |
+| **Auto-updates** | Fetches and installs updates from GitHub releases |
+| **Custom SVG icons** | Personalized launcher appearance |
+
+---
+
+## Installing on Linux Mint (step by step)
+
 ```bash
-tar -xzf astralrinth-app_*.tar.gz
-cd AstralRinth
-./AstralRinth.AppImage
+# 1. Open a terminal
+
+# 2. Download the .deb package
+wget https://github.com/T3ntari/AstralRith-upgrade/releases/latest/download/astralrinth-app_*.deb
+
+# 3. Install it (this also creates a desktop shortcut in your app menu)
+sudo apt install ./astralrinth-app_*.deb
+
+# 4. If step 3 fails with dependency errors, run:
+sudo apt --fix-broken install
+
+# 5. Launch from your desktop menu or run:
+ModrinthApp
 ```
 
-## Windows
-Download the `.msi` installer and run it.
+After install, you will find **AstralRinth App** in your desktop applications menu — no terminal needed after setup.
 
-## macOS
-Download the `.dmg` file, open it, and drag AstralRinth to Applications.
-Works on Ventura / Sonoma / Sequoia.
+### To uninstall
 
-### Downloadable file extensions
-- `.msi` for Windows
-- `.dmg` for macOS
-- `.deb` for Debian-based Linux
-- `.AppImage` for any Linux
-- `.tar.gz` for any Linux
+```bash
+sudo apt remove astralrinth-app
+```
 
-### Installation subjects
-- Builds signed with the following prefixes are not recommended for installation:
-  - `dev`, `nightly`, `dirty`, `dirty-dev`, `dirty-nightly`, `dirty_dev`, `dirty_nightly`
-- Auto-updating works through parsing special versions from releases
+---
 
-# Features
+## Available Downloads
 
-### Featured enhancement in AR
-- AstralRinth offers a range of authorization options, giving users the flexibility to log in with valid licenses or even a pirate account without auth credentials breaks. Experience Minecraft on your terms, breaking free from traditional licensing constraints.
+| File | Platform |
+|---|---|
+| `astralrinth-app_*_amd64.deb` | Debian / Ubuntu / Linux Mint / Pop!_OS / Zorin |
+| `AstralRinth_*.msi` | Windows |
+| `AstralRinth_*.dmg` | macOS (Ventura / Sonoma / Sequoia) |
+| `AstralRinth.AppImage` | Any Linux distro |
+| `astralrinth-app_*.tar.gz` | Any Linux distro |
 
-### Easy to use
-- Using the launcher is intuitive, any user can figure it out.
+> **Warning:** Builds with prefixes `dev`, `nightly`, `dirty`, `dirty-dev`, `dirty-nightly` are unstable and not recommended for daily use.
 
-### Update notifies
-- We have implemented notifications about the release of new updates on our Github. The launcher can also download them for you and try to install them.
+Download from the **[Releases page](https://github.com/T3ntari/AstralRith-upgrade/releases)**.
 
-### Enhancements
-- Custom .SVG vectors for a personalized touch.
-- Improved compatibility for both pirate and licensed accounts.
-- Beautiful Discord RPC with random messages while playing, along with an in-game timer and AFK counter.
-- Forced disabling of statistics collection (modrinch metrics) with a hard patch from AstralRinth, ensuring it remains deactivated regardless of the configuration setting.
-- Removal of advertisements from all launcher views.
-- Optimization of packages (archives).
-- Integrated update fetching feature
+---
 
-# Getting Started
-To begin your AstralRinth adventure, follow these steps:
-1. **Download Your OS Version**: Head over to our [releases page](https://github.com/T3ntari/AstralRith-upgrade/releases/latest) to find the right file for your operating system.
-   - **Choosing the Correct File**: Ensure you select the file that matches your OS requirements.
-   - [**How select file**](#downloadable-file-extensions)
-   - [**How select release**](#installation-subjects)
-2. **Authentication**: Log in with a valid license or, for testing, try using a pirate account to see AstralRinth in action.
-3. **Launch Minecraft**: Start your journey by launching Minecraft through AstralRinth and enjoy the adventures that await.
-   - **Choosing java installation**: The launcher will try to automatically detect the recommended JVM version for running the game, but you can configure everything in the launcher settings.
-
-# Building from source
+## Building from Source
 
 ### Prerequisites
+
 - [Rust](https://www.rust-lang.org/tools/install) (latest stable)
 - [Node.js](https://nodejs.org/) v20+
 - [pnpm](https://pnpm.io/)
-- [Turbo](https://turbo.build/) (installed via pnpm)
+- [Turbo](https://turbo.build/)
 
-### Build the launcher
+### Build
+
 ```bash
 git clone https://github.com/T3ntari/AstralRith-upgrade.git
-cd AstralRinth
+cd AstralRith-upgrade
 
-# Install JS dependencies
 pnpm install
-
-# Build the frontend
 pnpm run app:build
-
-# Build the Rust backend
 cargo build --release -p theseus_gui
 ```
 
 The built binary will be at `target/release/theseus_gui`.
 
-# Disclaimer
-- AstralRinth is a project intended for experimentation and educational purposes only. It does not endorse or support piracy, and users are encouraged to obtain valid licenses for a fully-supported Minecraft experience.
-- Users are reminded to respect licensing agreements and support the developers of Minecraft.
+---
 
-# License
-This project is licensed under the **GNU General Public License v3.0** - see the [LICENSE](LICENSE) file for details.
+## Disclaimer
 
-# Support our Project (Crypto Wallets)
-- BTC (Telegram): 14g6asNYzcUoaQtB8B2QGKabgEvn55wfLj
-- USDT TRC20 (Telegram): TMSmv1D5Fdf4fipUpwBCdh16WevrV45vGr
-- TONCOIN (Telegram): UQAqUJ2_hVBI6k_gPyfp_jd-1K0OS61nIFPZuJWN9BwGAvKe
+AstralRinth is a project intended for experimentation and educational purposes only. It does not endorse or support piracy, and users are encouraged to obtain valid licenses for a fully-supported Minecraft experience. Users are reminded to respect licensing agreements and support the developers of Minecraft.
 
-# Logo
-![ar_logo](https://github.com/DIDIRUS4/AstralRinth/assets/77334306/43d4acb0-546c-4dff-834d-83fb2ba6ad6f)
+## License
+
+This project is licensed under the **GNU General Public License v3.0** — see the [LICENSE](LICENSE) file for details.
+
+## Support
+
+- **BTC**: `14g6asNYzcUoaQtB8B2QGKabgEvn55wfLj`
+- **USDT TRC20**: `TMSmv1D5Fdf4fipUpwBCdh16WevrV45vGr`
+- **TONCOIN**: `UQAqUJ2_hVBI6k_gPyfp_jd-1K0OS61nIFPZuJWN9BwGAvKe`
