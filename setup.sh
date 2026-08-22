@@ -160,11 +160,11 @@ create_desktop_entry() {
     local exec_line
 
     if [[ "$is_appimage" == "true" ]]; then
-        # Strip GPU env vars that break webkit2gtk on Wayland/NVIDIA hybrid
-        # Also disable DMABUF renderer to prevent black screen on NVIDIA/AMD
-        exec_line="env -u VK_LOADER_DRIVERS_SELECT -u __GLX_VENDOR_LIBRARY_NAME -u __NV_PRIME_RENDER_OFFLOAD WEBKIT_DISABLE_DMABUF_RENDERER=1 $bin_path --appimage-extract-and-run"
+        # Use NVIDIA GPU for rendering (performance) but disable DMABUF (prevents black screen)
+        exec_line="env __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia WEBKIT_DISABLE_DMABUF_RENDERER=1 $bin_path --appimage-extract-and-run"
     else
-        exec_line="env -u VK_LOADER_DRIVERS_SELECT -u __GLX_VENDOR_LIBRARY_NAME -u __NV_PRIME_RENDER_OFFLOAD WEBKIT_DISABLE_DMABUF_RENDERER=1 $bin_path"
+        # Use NVIDIA GPU for rendering (performance) but disable DMABUF (prevents black screen)
+        exec_line="env __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia WEBKIT_DISABLE_DMABUF_RENDERER=1 $bin_path"
     fi
 
     cat > "$DESKTOP_DIR/astralrinth.desktop" <<EOF
