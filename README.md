@@ -21,7 +21,7 @@ Dive into the extraordinary world of AstralRinth, a fork of the original project
 
 ## Quick Start (Debian / Ubuntu)
 ```bash
-# 1. Download the .deb from https://github.com/T3ntari/AstralRinth/releases
+# 1. Download the .deb from https://github.com/T3ntari/AstralRith-upgrade/releases
 # 2. Install it:
 sudo apt install ./astralrinth-app_*.deb
 
@@ -30,7 +30,7 @@ sudo apt --fix-broken install
 ```
 
 ## All platforms
-Download the correct file for your OS from [releases](https://github.com/T3ntari/AstralRinth/releases) or [dev builds](https://github.com/T3ntari/AstralRinth/releases/tag/nightly).
+Download the correct file for your OS from [releases](https://github.com/T3ntari/AstralRith-upgrade/releases) or [dev builds](https://github.com/T3ntari/AstralRith-upgrade/releases/tag/nightly).
 
 ## Linux (Debian / Ubuntu / Linux Mint / Pop!_OS / Zorin)
 
@@ -103,7 +103,7 @@ Works on Ventura / Sonoma / Sequoia.
 
 # Getting Started
 To begin your AstralRinth adventure, follow these steps:
-1. **Download Your OS Version**: Head over to our [releases page](https://github.com/T3ntari/AstralRinth/releases/latest) to find the right file for your operating system.
+1. **Download Your OS Version**: Head over to our [releases page](https://github.com/T3ntari/AstralRith-upgrade/releases/latest) to find the right file for your operating system.
    - **Choosing the Correct File**: Ensure you select the file that matches your OS requirements.
    - [**How select file**](#downloadable-file-extensions)
    - [**How select release**](#installation-subjects)
@@ -121,7 +121,7 @@ To begin your AstralRinth adventure, follow these steps:
 
 ### Build the launcher
 ```bash
-git clone https://github.com/T3ntari/AstralRinth.git
+git clone https://github.com/T3ntari/AstralRith-upgrade.git
 cd AstralRinth
 
 # Install JS dependencies
