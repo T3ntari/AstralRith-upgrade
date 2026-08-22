@@ -63,8 +63,9 @@ remove_old() {
     done
 
     # Old .deb install
-    if dpkg -l 2>/dev/null | grep -q astralrinth; then
+    if dpkg -l 2>/dev/null | grep -qi astral; then
         warn "Old .deb package detected — removing..."
+        sudo dpkg --remove astral-rinth-app 2>/dev/null || true
         sudo dpkg --remove astralrinth 2>/dev/null || true
         sudo dpkg --remove AstralRinth 2>/dev/null || true
         ok "Removed old .deb package"
@@ -76,7 +77,13 @@ remove_old() {
         ok "Removed old icon"
     fi
 
-    ok "Old installation removed."
+    # IMPORTANT: Preserve instance data (Minecraft instances, saves, mods, etc.)
+    if [[ -d "$DATA_DIR" ]]; then
+        warn "Instance data preserved at: $DATA_DIR"
+        warn "Your Minecraft instances will remain after reinstall."
+    fi
+
+    ok "Old installation removed (instances preserved)."
 }
 
 # ── Install new version ──────────────────────────────────────────────────────
@@ -132,6 +139,10 @@ install_new() {
 
     ok "Installed binary: $bin_path"
     create_desktop_entry "$bin_path"
+
+    if [[ -d "$DATA_DIR" ]]; then
+        ok "Existing instances preserved at: $DATA_DIR"
+    fi
 }
 
 # ── Fallback: AppImage install ───────────────────────────────────────────────

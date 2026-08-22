@@ -52,6 +52,8 @@ import { useFetch } from '@/helpers/fetch.js'
 import { check } from '@tauri-apps/plugin-updater'
 import NavButton from '@/components/ui/NavButton.vue'
 import { get as getCreds, logout, login } from '@/helpers/mr_auth.js'
+import UpdateModal from '@/components/ui/modal/UpdateModal.vue'
+import { updateState, getRemote } from '@/helpers/update.js'
 import { get_user } from '@/helpers/cache.js'
 import AppSettingsModal from '@/components/ui/modal/AppSettingsModal.vue'
 import dayjs from 'dayjs'
@@ -203,8 +205,18 @@ async function setupApp() {
   })
 
   get_opening_command().then(handleCommand)
-  // checkUpdates()
   fetchCredentials().catch(console.error)
+
+  // Automatic update detection on launch (non-blocking)
+  setTimeout(() => {
+    getRemote(false, false)
+      .then(() => {
+        if (updateState.value) {
+          updateModal.value?.show()
+        }
+      })
+      .catch((err) => console.error('Update check failed:', err))
+  }, 3000)
 }
 
 const stateFailed = ref(false)
@@ -231,6 +243,12 @@ const router = useRouter()
 router.afterEach((to, from, failure) => {
   trackEvent('PageView', { path: to.path, fromPath: from.path, failed: failure })
 })
+
+function onUpdateComplete() {
+  // Refresh update state after install completes
+  updateState.value = false
+  console.info('[AR] Update completed successfully')
+}
 const route = useRoute()
 
 const loading = useLoading()
@@ -241,6 +259,7 @@ const notificationsWrapper = ref()
 
 const error = useError()
 const errorModal = ref()
+const updateModal = ref()
 
 const install = useInstall()
 const modInstallModal = ref()
@@ -629,6 +648,7 @@ function handleAuxClick(e) {
   <ModInstallModal ref="modInstallModal" />
   <IncompatibilityWarningModal ref="incompatibilityWarningModal" />
   <InstallConfirmModal ref="installConfirmModal" />
+  <UpdateModal ref="updateModal" @update-complete="onUpdateComplete" />
 </template>
 
 <style lang="scss" scoped>
