@@ -1,0 +1,2 @@
+ALTER TABLE settings ADD COLUMN launcher_vsync INTEGER NOT NULL DEFAULT TRUE;
+ALTER TABLE settings ADD COLUMN gpu_preference TEXT NOT NULL DEFAULT 'auto';

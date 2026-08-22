@@ -100,6 +100,8 @@ type AppSettings = {
   hooks: Hooks
   gpu_optimizations: boolean
   efficient_mode: boolean
+  launcher_vsync: boolean
+  gpu_preference: string
 
   custom_dir?: string
   prev_custom_dir?: string

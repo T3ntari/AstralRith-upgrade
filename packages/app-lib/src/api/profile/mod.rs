@@ -699,13 +699,13 @@ pub async fn run_credentials(
     }
 
     // ── GPU / VSYNC optimizations ──────────────────────────────────────────────
-    // Injects NVIDIA threaded GL, G1GC JVM args, and performance-friendly
-    // Minecraft options.txt settings when gpu_optimizations is enabled.
-    // These dramatically improve FPS on Linux + dedicated GPU setups.
+    // Injects driver-level optimizations (threaded GL, vsync control) and JVM args.
+    // Does NOT force Minecraft graphics settings — those should be user-controlled
+    // in the game's own Video Settings.
     let mut java_args = java_args;
     let mut env_args = env_args;
     if settings.gpu_optimizations {
-        // Env vars: NVIDIA threaded optimizations, disable driver vsync cap
+        // Driver-level env vars: NVIDIA threaded optimizations
         let gpu_env_vars: Vec<(String, String)> = vec![
             ("__GL_THREADED_OPTIMIZATIONS".to_string(), "1".to_string()),
             ("__GL_SYNC_TO_VBLANK".to_string(), "0".to_string()),
@@ -734,26 +734,42 @@ pub async fn run_credentials(
                 java_args.push(arg);
             }
         }
+    }
 
-        // Minecraft options.txt: smooth vsync + performance graphics
-        let gpu_mc_options: Vec<(String, String)> = vec![
-            ("vsync".to_string(), "true".to_string()),
-            ("graphics".to_string(), "fast".to_string()),
-            ("fancyGraphics".to_string(), "false".to_string()),
-            ("renderDistance".to_string(), "12".to_string()),
-            ("particles".to_string(), "minimal".to_string()),
-            ("cloudHeight".to_string(), "0".to_string()),
-            ("ao".to_string(), "0".to_string()),
-            ("smoothLighting".to_string(), "false".to_string()),
-            ("clouds".to_string(), "false".to_string()),
-            ("fboEnable".to_string(), "true".to_string()),
-            ("entityShadows".to_string(), "false".to_string()),
-            ("maxFps".to_string(), "0".to_string()),
-        ];
-        for (k, v) in gpu_mc_options {
-            if !mc_set_options.iter().any(|(ek, _)| ek == &k) {
-                mc_set_options.push((k, v));
+    // GPU preference for multi-GPU / PRIME systems
+    // "auto" | "nvidia" | "integrated" | "dri:<pci_id>"
+    let gpu_pref = &settings.gpu_preference;
+    if gpu_pref != "auto" {
+        match gpu_pref.as_str() {
+            "nvidia" => {
+                // PRIME render offload to NVIDIA dGPU
+                let nvidia_vars = vec![
+                    ("__NV_PRIME_RENDER_OFFLOAD".to_string(), "1".to_string()),
+                    ("__GLX_VENDOR_LIBRARY_NAME".to_string(), "nvidia".to_string()),
+                    ("__VK_LAYER_NV_optimus".to_string(), "NVIDIA_only".to_string()),
+                ];
+                for (k, v) in nvidia_vars {
+                    if !env_args.iter().any(|(ek, _)| ek == &k) {
+                        env_args.push((k, v));
+                    }
+                }
             }
+            "integrated" => {
+                // Force integrated GPU (iGPU) - unset PRIME vars, use DRI_PRIME=0
+                env_args.retain(|(k, _)| {
+                    !matches!(k.as_str(), "__NV_PRIME_RENDER_OFFLOAD" | "__GLX_VENDOR_LIBRARY_NAME" | "__VK_LAYER_NV_optimus")
+                });
+                env_args.push(("DRI_PRIME".to_string(), "0".to_string()));
+            }
+            pref if pref.starts_with("dri:") => {
+                // Specific GPU by PCI ID: dri:10de:1c82 or similar
+                let pci_id = pref.strip_prefix("dri:").unwrap_or("");
+                env_args.retain(|(k, _)| {
+                    !matches!(k.as_str(), "__NV_PRIME_RENDER_OFFLOAD" | "__GLX_VENDOR_LIBRARY_NAME" | "__VK_LAYER_NV_optimus" | "DRI_PRIME")
+                });
+                env_args.push(("DRI_PRIME".to_string(), pci_id.to_string()));
+            }
+            _ => {}
         }
     }
 

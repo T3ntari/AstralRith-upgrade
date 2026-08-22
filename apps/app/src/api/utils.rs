@@ -7,6 +7,7 @@ use theseus::{
 use crate::api::Result;
 use dashmap::DashMap;
 use std::path::PathBuf;
+use std::fs;
 
 pub fn init<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
     tauri::plugin::Builder::new("utils")
@@ -18,7 +19,8 @@ pub fn init<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
             open_path,
             show_launcher_logs_folder,
             progress_bars_list,
-            get_opening_command
+            get_opening_command,
+            get_gpus
         ])
         .build()
 }
@@ -146,4 +148,95 @@ pub async fn get_opening_command() -> Result<Option<CommandPayload>> {
 pub async fn handle_command(command: String) -> Result<()> {
     tracing::info!("handle command: {command}");
     Ok(theseus::handler::parse_and_emit_command(&command).await?)
+}
+
+/// GPU information returned to the frontend
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct GpuInfo {
+    pub id: String,           // "auto" | "nvidia" | "integrated" | "dri:10de:1c82"
+    pub name: String,         // Human-readable name
+    pub vendor: String,       // "NVIDIA", "Intel", "AMD", etc.
+    pub pci_id: Option<String>, // "10de:1c82"
+    pub is_current: bool,     // Currently selected
+}
+
+/// List available GPUs for multi-GPU/PRIME GPU selection
+#[tauri::command]
+pub async fn get_gpus() -> Result<Vec<GpuInfo>> {
+    let mut gpus = Vec::new();
+
+    // Always include "auto"
+    gpus.push(GpuInfo {
+        id: "auto".to_string(),
+        name: "Automatic (system default)".to_string(),
+        vendor: "System".to_string(),
+        pci_id: None,
+        is_current: false,
+    });
+
+    // Linux: scan /sys/class/drm for GPUs
+    #[cfg(target_os = "linux")]
+    {
+        let drm_path = PathBuf::from("/sys/class/drm");
+        if drm_path.exists() {
+            if let Ok(entries) = fs::read_dir(&drm_path) {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+                    // Look for card* directories (card0, card1, etc.)
+                    if name.starts_with("card") && path.is_dir() {
+                        let device_path = path.join("device");
+                        if let Ok(vendor_id) = fs::read_to_string(device_path.join("vendor")) {
+                            let vendor_id = vendor_id.trim();
+                            let vendor_name = match vendor_id {
+                                "0x10de" => "NVIDIA",
+                                "0x8086" => "Intel",
+                                "0x1002" => "AMD",
+                                "0x15ad" => "VMware",
+                                _ => "Unknown",
+                            };
+                            let pci_id = fs::read_to_string(device_path.join("uevent"))
+                                .ok()
+                                .and_then(|s| {
+                                    s.lines()
+                                        .find(|l| l.starts_with("PCI_ID="))
+                                        .map(|l| l.strip_prefix("PCI_ID=").unwrap().to_string())
+                                })
+                                .unwrap_or_default();
+
+                            let gpu_id = if vendor_name == "NVIDIA" {
+                                format!("nvidia")
+                            } else {
+                                format!("integrated")
+                            };
+                            
+                            // For non-NVIDIA, use DRI_PRIME with PCI ID
+                            let gpu_id = if vendor_name == "NVIDIA" {
+                                "nvidia".to_string()
+                            } else if !pci_id.is_empty() {
+                                format!("dri:{}", pci_id)
+                            } else {
+                                "integrated".to_string()
+                            };
+
+                            gpus.push(GpuInfo {
+                                id: gpu_id,
+                                name: format!("{} ({})", vendor_name, pci_id),
+                                vendor: vendor_name.to_string(),
+                                pci_id: if pci_id.is_empty() { None } else { Some(pci_id) },
+                                is_current: false,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Mark the first non-auto as current if only one GPU (simplification)
+    if gpus.len() == 2 {
+        gpus[1].is_current = true;
+    }
+
+    Ok(gpus)
 }

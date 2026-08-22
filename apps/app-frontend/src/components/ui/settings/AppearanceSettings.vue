@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Toggle, ThemeSelector, TeleportDropdownMenu } from '@modrinth/ui'
+import { Toggle, ThemeSelector, TeleportDropdownMenu, DropdownSelect } from '@modrinth/ui'
 import { useTheming } from '@/store/state'
 import { get, set } from '@/helpers/settings'
 import { watch, ref } from 'vue'
@@ -9,6 +9,12 @@ const themeStore = useTheming()
 
 const os = ref(await getOS())
 const settings = ref(await get())
+
+const gpuOptions = ref([
+  { id: 'auto', name: 'Automatic (system default)' },
+  { id: 'nvidia', name: 'NVIDIA (dedicated)' },
+  { id: 'integrated', name: 'Integrated (iGPU)' },
+])
 
 watch(
   settings,
@@ -75,6 +81,41 @@ watch(
         }
       "
     />
+  </div>
+
+  <div class="mt-4 flex items-center justify-between">
+    <div>
+      <h2 class="m-0 text-lg font-extrabold text-contrast">Launcher VSYNC</h2>
+      <p class="m-0 mt-1">Enable true VSYNC for the launcher window (requires restart).</p>
+    </div>
+    <Toggle
+      id="launcher-vsync"
+      :model-value="settings.launcher_vsync"
+      :checked="settings.launcher_vsync"
+      @update:model-value="
+        (e) => {
+          settings.launcher_vsync = e
+        }
+      "
+    />
+  </div>
+
+  <div class="mt-4 flex items-center justify-between gap-4">
+    <div>
+      <h2 class="m-0 text-lg font-extrabold text-contrast">GPU for Minecraft</h2>
+      <p class="m-0 mt-1">
+        Select which GPU to use for Minecraft instances. Useful for laptops with NVIDIA Optimus or multiple GPUs.
+      </p>
+    </div>
+    <DropdownSelect
+      v-model="settings.gpu_preference"
+      :options="gpuOptions"
+      :display-name="(opt) => opt.name"
+      class="max-w-[20rem]"
+      @update:model-value="(val) => settings.gpu_preference = val.id"
+    >
+      <span class="font-semibold text-secondary">{{ gpuOptions.find(o => o.id === settings.gpu_preference)?.name ?? settings.gpu_preference }}</span>
+    </DropdownSelect>
   </div>
 
   <div v-if="os !== 'MacOS'" class="mt-4 flex items-center justify-between gap-4">

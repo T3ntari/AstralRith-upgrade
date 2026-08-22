@@ -40,6 +40,14 @@ pub struct Settings {
     /// Disables shadows, blurs, gradients, and most animations.
     pub efficient_mode: bool,
 
+    /// True VSYNC for the launcher window itself (webview rendering).
+    /// Applied before webview init on Linux via __GL_SYNC_TO_VBLANK.
+    pub launcher_vsync: bool,
+
+    /// GPU preference for Minecraft instances (multi-GPU/PRIME systems).
+    /// "auto" | "nvidia" | "integrated" | "dri:<pci_id>"
+    pub gpu_preference: String,
+
     pub custom_dir: Option<String>,
     pub prev_custom_dir: Option<String>,
     pub migrated: bool,
@@ -70,7 +78,7 @@ impl Settings {
                 mc_memory_max, mc_force_fullscreen, mc_game_resolution_x, mc_game_resolution_y, hide_on_process_start,
                 hook_pre_launch, hook_wrapper, hook_post_exit,
                 custom_dir, prev_custom_dir, migrated, json(feature_flags) feature_flags, toggle_sidebar,
-                gpu_optimizations, efficient_mode
+                gpu_optimizations, efficient_mode, launcher_vsync, gpu_preference
             FROM settings
             "
         )
@@ -120,6 +128,10 @@ impl Settings {
             migrated: res.migrated == 1,
             gpu_optimizations: res.gpu_optimizations != 0,
             efficient_mode: res.efficient_mode != 0,
+            launcher_vsync: res.launcher_vsync != 0,
+            gpu_preference: res
+                .gpu_preference
+                .unwrap_or_else(|| "auto".to_string()),
             feature_flags: res
                 .feature_flags
                 .as_ref()
@@ -179,7 +191,9 @@ impl Settings {
                 toggle_sidebar = $26,
                 feature_flags = $27,
                 gpu_optimizations = $28,
-                efficient_mode = $29
+                efficient_mode = $29,
+                launcher_vsync = $30,
+                gpu_preference = $31
             ",
             max_concurrent_writes,
             max_concurrent_downloads,
@@ -210,6 +224,8 @@ impl Settings {
             feature_flags,
             self.gpu_optimizations,
             self.efficient_mode,
+            self.launcher_vsync,
+            self.gpu_preference,
         )
         .execute(exec)
         .await?;
