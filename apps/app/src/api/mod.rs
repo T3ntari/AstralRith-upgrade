@@ -4,7 +4,6 @@ use thiserror::Error;
 
 pub mod auth;
 pub mod cf;
-pub mod gemini;
 pub mod import;
 pub mod jre;
 pub mod logs;

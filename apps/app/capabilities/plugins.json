@@ -22,7 +22,6 @@
 
     "auth:default",
     "cf:default",
-    "gemini:default",
     "import:default",
     "jre:default",
     "logs:default",

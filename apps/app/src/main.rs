@@ -272,7 +272,6 @@ fn main() {
     builder = builder
         .plugin(api::auth::init())
         .plugin(api::cf::init())
-        .plugin(api::gemini::init())
         .plugin(api::mr_auth::init())
         .plugin(api::import::init())
         .plugin(api::logs::init())

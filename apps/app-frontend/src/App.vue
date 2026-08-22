@@ -17,7 +17,6 @@ import {
   LogOutIcon,
   RightArrowIcon,
   LeftArrowIcon,
-  SparklesIcon,
 } from '@modrinth/assets'
 import { Avatar, Button, ButtonStyled, Notifications, OverflowMenu } from '@modrinth/ui'
 import { useLoading, useTheming } from '@/store/state'
@@ -407,9 +406,6 @@ function handleAuxClick(e) {
         "
       >
         <LibraryIcon />
-      </NavButton>
-      <NavButton v-tooltip.right="'AI Composer'" to="/composer">
-        <SparklesIcon />
       </NavButton>
       <div class="h-px w-6 mx-auto my-2 bg-button-bg"></div>
       <suspense>
