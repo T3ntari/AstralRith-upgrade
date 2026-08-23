@@ -50,11 +50,11 @@ impl EventState {
         Ok(EVENT_STATE.get().ok_or(EventError::NotInitialized)?.clone())
     }
 
-    // Values provided should not be used directly, as they are clones and are not guaranteed to be up-to-date
-    pub async fn list_progress_bars() -> crate::Result<DashMap<Uuid, LoadingBar>>
+    // Returns a snapshot Vec of loading bars. Values are clones and may be stale.
+    pub async fn list_progress_bars() -> crate::Result<Vec<LoadingBar>>
     {
         let value = Self::get()?;
-        Ok(value.loading_bars.clone())
+        Ok(value.loading_bars.iter().map(|r| r.value().clone()).collect())
     }
 
     #[cfg(feature = "tauri")]

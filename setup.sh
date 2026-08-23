@@ -171,11 +171,15 @@ create_desktop_entry() {
     local exec_line
 
     if [[ "$is_appimage" == "true" ]]; then
-        # Use NVIDIA GPU for rendering (performance) but disable DMABUF (prevents black screen)
-        exec_line="env __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia WEBKIT_DISABLE_DMABUF_RENDERER=1 $bin_path --appimage-extract-and-run"
+        # Launcher is 2D UI: render on integrated GPU w/ DMABUF hardware compositing.
+        # NVIDIA PRIME offload + DMABUF breaks under XWayland (white window), and
+        # WEBKIT_DISABLE_DMABUF_RENDERER=1 = software SHM (15 FPS). Don't use either.
+        exec_line="env GDK_BACKEND=x11 __NV_PRIME_RENDER_OFFLOAD=0 __GLX_VENDOR_LIBRARY_NAME=mesa __GL_SYNC_TO_VBLANK=0 $bin_path --appimage-extract-and-run"
     else
-        # Use NVIDIA GPU for rendering (performance) but disable DMABUF (prevents black screen)
-        exec_line="env __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia WEBKIT_DISABLE_DMABUF_RENDERER=1 $bin_path"
+        # Launcher is 2D UI: render on integrated GPU w/ DMABUF hardware compositing.
+        # NVIDIA PRIME offload + DMABUF breaks under XWayland (white window), and
+        # WEBKIT_DISABLE_DMABUF_RENDERER=1 = software SHM (15 FPS). Don't use either.
+        exec_line="env GDK_BACKEND=x11 __NV_PRIME_RENDER_OFFLOAD=0 __GLX_VENDOR_LIBRARY_NAME=mesa __GL_SYNC_TO_VBLANK=0 $bin_path"
     fi
 
     cat > "$DESKTOP_DIR/astralrinth.desktop" <<EOF

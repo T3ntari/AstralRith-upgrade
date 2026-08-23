@@ -1,7 +1,8 @@
 use crate::event::emit::{emit_profile, emit_warning};
 use crate::event::ProfilePayloadType;
 use crate::state::{DirectoryInfo, ProfileInstallStage, ProjectType};
-use futures::{channel::mpsc::channel, SinkExt, StreamExt};
+use futures::channel::mpsc::channel;
+use futures::{SinkExt, StreamExt};
 use notify::{RecommendedWatcher, RecursiveMode};
 use notify_debouncer_mini::{new_debouncer, DebounceEventResult, Debouncer};
 use std::time::Duration;
@@ -15,9 +16,9 @@ pub async fn init_watcher() -> crate::Result<FileWatcher> {
     let file_watcher = new_debouncer(
         Duration::from_secs_f32(1.0),
         move |res: DebounceEventResult| {
-            futures::executor::block_on(async {
-                tx.send(res).await.unwrap();
-            })
+            // Use try_send to avoid blocking the notify thread.
+            // If the channel is full, the debounce will re-fire anyway.
+            let _ = tx.try_send(res);
         },
     )?;
 

@@ -61,3 +61,17 @@ app-playground-data/*
 apps/frontend/.env
 
 .astro
+
+# local scratch / session files
+*.bak
+.note_register
+.todo.json
+todo.md
+apply_lag_fixes.py
+asar-list.txt
+cdp_fetch.py
+extract_ctx.py
+scan_asar.py
+lag_fix_astralrinth.md
+shared_files.md
+terminal_logs/

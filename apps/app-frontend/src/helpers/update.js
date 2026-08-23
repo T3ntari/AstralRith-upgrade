@@ -1,7 +1,7 @@
 import { ref } from 'vue'
 import { getVersion } from '@tauri-apps/api/app'
 import { getArtifact, getOS } from '@/helpers/utils.js'
-
+import { loading_listener } from '@/helpers/events.js'
 
 export const allowState = ref(false)
 export const installState = ref(false)
@@ -9,6 +9,7 @@ export const updateState = ref(false)
 export const remoteVersion = ref('')
 export const localVersion = ref('')
 export const updateProgress = ref(0)
+export const updateMessage = ref('')
 export const latestBetaCommitTruncatedSha = ref('')
 export const latestBetaCommitLink = ref('')
 export const launcherUrl = 'https://github.com/T3ntari/AstralRith-upgrade/releases'
@@ -22,6 +23,8 @@ const betaBranch = `beta`
 const osNames = ['macos', 'windows', 'linux']
 const macExtension = `.dmg`
 const windowsExtension = `.msi`
+// Linux ships .deb (Debian/Ubuntu/Mint) and .rpm (Fedora). Prefer .deb.
+const linuxExtensions = [`.deb`, `.rpm`, `.AppImage`]
 const blacklistedBuilds = [
   `dev`,
   `nightly`,
@@ -64,6 +67,32 @@ export async function getBranches() {
 }
 
 /**
+ * Subscribes to real download progress events emitted by the Rust backend
+ * (LoadingBarType::LauncherUpdate). Returns an unsubscribe function.
+ */
+export function onDownloadProgress(callback) {
+  return loading_listener((payload) => {
+    if (!payload?.event) return
+    if (payload.event.type !== 'launcher_update') return
+    const fraction = payload.fraction
+    let pct = 0
+    if (fraction == null) {
+      // null fraction => bar completed
+      pct = 100
+    } else if (fraction <= 1) {
+      pct = Math.round(fraction * 100)
+    } else {
+      pct = Math.min(100, Math.round(fraction))
+    }
+    callback({
+      progress: pct,
+      message: payload.message || '',
+      done: fraction == null,
+    })
+  })
+}
+
+/**
  * Fetches remote release data and handles updates/downloads.
  *
  * @param {boolean} elementIdBool - Whether to update the DOM element.
@@ -82,32 +111,79 @@ export async function getRemote(elementIdBool, downloadArtifactBool) {
     localVersion.value = `v${currentVersion}`
     remoteVersion.value = latestRelease
 
+    // proper semver compare (strip v, compare numerically)
+    const stripV = (v) => String(v).trim().replace(/^v/i, '')
+    const cmpVersions = (a, b) => {
+      const pa = stripV(a).split(/[.+-]/).map((x) => parseInt(x, 10) || 0)
+      const pb = stripV(b).split(/[.+-]/).map((x) => parseInt(x, 10) || 0)
+      const len = Math.max(pa.length, pb.length)
+      for (let i = 0; i < len; i++) {
+        const va = pa[i] || 0
+        const vb = pb[i] || 0
+        if (va !== vb) return va > vb ? 1 : -1
+      }
+      return 0
+    }
+    const cleanRemote = stripV(latestRelease)
+    const cleanLocal = stripV(currentVersion)
+    const isBlacklisted = blacklistedBuilds.some((b) =>
+      cleanRemote.toLowerCase().startsWith(b.toLowerCase()),
+    )
     const isNewer =
-      latestRelease &&
-      !latestRelease.startsWith(`v${currentVersion}`) &&
-      latestRelease !== currentVersion
+      latestRelease && !isBlacklisted && cleanRemote !== cleanLocal && cmpVersions(cleanRemote, cleanLocal) > 0
 
-    if (osNames.includes(os.value.toLowerCase()) && isNewer) {
-      updateState.value = true
-      allowState.value = true
+    // Require an actual installer asset for this OS (any supported ext).
+    if (isNewer && osNames.includes(os.value.toLowerCase())) {
+      const exts = getExtensions()
+      const hasAsset = (data.assets || []).some(
+        (a) => !blacklistedBuilds.some((b) => a.name.startsWith(b)) && exts.some((e) => a.name.endsWith(e)),
+      )
+      if (hasAsset) {
+        updateState.value = true
+        allowState.value = true
+      } else {
+        console.log(
+          `[AR] newer version ${latestRelease} found but no ${exts.join('/')} asset for ${os.value} - suppressing badge`,
+        )
+        updateState.value = false
+        allowState.value = false
+      }
     } else {
       updateState.value = false
       allowState.value = false
     }
 
-    console.log('[AR] Update check — local:', localVersion.value, 'remote:', remoteVersion.value, 'available:', updateState.value)
+    console.log(
+      '[AR] Update check — local:',
+      localVersion.value,
+      'remote:',
+      remoteVersion.value,
+      'available:',
+      updateState.value,
+    )
 
     if (downloadArtifactBool && updateState.value) {
       installState.value = true
       updateProgress.value = 0
+      updateMessage.value = 'Starting download...'
       const builds = data.assets || []
-      const fileName = getInstaller(getExtension(), builds)
+      const fileName = getInstaller(getExtensions(), builds)
       if (fileName != null) {
         await getArtifact(fileName[1], fileName[0], os.value, true)
+        installState.value = false
+        updateProgress.value = 100
+        updateMessage.value = 'Update downloaded.'
+        updateState.value = false
+      } else {
+        console.error(
+          `No installer found for OS ${os.value} with extensions ${getExtensions().join('/')}`,
+          builds.map((b) => b.name),
+        )
+        installState.value = false
+        throw new Error(
+          `No installer found for ${os.value} (${getExtensions().join('/') || 'unknown extension'}). Check releases page: ${launcherUrl}`,
+        )
       }
-      installState.value = false
-      updateProgress.value = 100
-      updateState.value = false
     }
   } catch (error) {
     console.error(failedFetch[0], error)
@@ -117,7 +193,7 @@ export async function getRemote(elementIdBool, downloadArtifactBool) {
   }
 }
 
-function getInstaller(osExtension, builds) {
+function getInstaller(osExtensions, builds) {
   for (const build of builds) {
     let blacklisted = false
     for (const item of blacklistedBuilds) {
@@ -126,17 +202,21 @@ function getInstaller(osExtension, builds) {
         break
       }
     }
-    if (build.name.endsWith(osExtension) && !blacklisted) {
-      console.log(build.browser_download_url)
-      return [build.name, build.browser_download_url]
+    if (blacklisted) continue
+    for (const ext of osExtensions) {
+      if (build.name.endsWith(ext)) {
+        console.log(build.browser_download_url)
+        return [build.name, build.browser_download_url]
+      }
     }
   }
   return null
 }
 
-function getExtension() {
+export function getExtensions() {
   const osLower = os.value.toLowerCase()
-  if (osLower === osNames[0]) return macExtension
-  if (osLower === osNames[1]) return windowsExtension
-  return null
+  if (osLower === osNames[0]) return [macExtension]
+  if (osLower === osNames[1]) return [windowsExtension]
+  if (osLower === osNames[2]) return linuxExtensions
+  return []
 }

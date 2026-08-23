@@ -5,7 +5,6 @@ use theseus::{
 };
 
 use crate::api::Result;
-use dashmap::DashMap;
 use std::path::PathBuf;
 use std::fs;
 
@@ -27,7 +26,7 @@ pub fn init<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
 
 #[tauri::command]
 pub async fn get_artifact(downloadurl: &str, filename: &str, ostype: &str, autoupdatesupported: bool) -> Result<()> {
-    theseus::download::init_download(downloadurl, filename, ostype, autoupdatesupported).await;
+    theseus::download::init_download(downloadurl, filename, ostype, autoupdatesupported).await?;
     Ok(())
 }
 
@@ -51,11 +50,10 @@ pub enum OS {
 }
 
 // Lists active progress bars
-// Create a new HashMap with the same keys
-// Values provided should not be used directly, as they are not guaranteed to be up-to-date
+// Returns a Vec snapshot. Values are clones and may be stale.
 #[tauri::command]
 pub async fn progress_bars_list(
-) -> Result<DashMap<uuid::Uuid, theseus::LoadingBar>> {
+) -> Result<Vec<theseus::LoadingBar>> {
     let res = theseus::EventState::list_progress_bars().await?;
     Ok(res)
 }

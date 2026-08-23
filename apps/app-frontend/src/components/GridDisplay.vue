@@ -175,11 +175,9 @@ const filteredResults = computed(() => {
     })
   } else if (group.value === 'Group') {
     instances.forEach((instance) => {
-      if (instance.groups.length === 0) {
-        instance.groups.push('None')
-      }
+      const groups = instance.groups.length > 0 ? instance.groups : ['None']
 
-      for (const category of instance.groups) {
+      for (const category of groups) {
         if (!instanceMap.has(category)) {
           instanceMap.set(category, [])
         }

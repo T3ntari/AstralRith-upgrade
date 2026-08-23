@@ -1,5 +1,5 @@
 <script setup>
-import { onUnmounted, ref, shallowRef } from 'vue'
+import { onMounted, onUnmounted, ref, shallowRef } from 'vue'
 import { list } from '@/helpers/profile.js'
 import { useRoute } from 'vue-router'
 import { useBreadcrumbs } from '@/store/breadcrumbs.js'
@@ -19,11 +19,16 @@ breadcrumbs.setRootContext({ name: 'Library', link: route.path })
 const instances = shallowRef(await list().catch(handleError))
 
 const offline = ref(!navigator.onLine)
-window.addEventListener('offline', () => {
-  offline.value = true
+let offlineHandler, onlineHandler
+onMounted(() => {
+  offlineHandler = () => { offline.value = true }
+  onlineHandler = () => { offline.value = false }
+  window.addEventListener('offline', offlineHandler)
+  window.addEventListener('online', onlineHandler)
 })
-window.addEventListener('online', () => {
-  offline.value = false
+onUnmounted(() => {
+  if (offlineHandler) window.removeEventListener('offline', offlineHandler)
+  if (onlineHandler) window.removeEventListener('online', onlineHandler)
 })
 
 const unlistenProfile = await profile_listener(async () => {

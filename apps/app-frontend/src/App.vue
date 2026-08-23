@@ -298,9 +298,14 @@ const hasPlus = computed(
 
 const sidebarToggled = ref(true)
 
-themeStore.$subscribe(() => {
-  sidebarToggled.value = !themeStore.toggleSidebar
-})
+// Only react to toggleSidebar changes, not every theme store mutation
+watch(
+  () => themeStore.toggleSidebar,
+  (val) => {
+    sidebarToggled.value = !val
+  },
+  { immediate: true },
+)
 
 const forceSidebar = computed(
   () => route.path.startsWith('/browse') || route.path.startsWith('/project'),
@@ -806,7 +811,7 @@ function handleAuxClick(e) {
 
 .app-sidebar::before {
   content: '';
-  box-shadow: -15px 0 15px -15px rgba(0, 0, 0, 0.2) inset;
+  border-right: 1px solid rgba(0, 0, 0, 0.1);
   top: 0;
   bottom: 0;
   left: -2rem;
@@ -831,9 +836,7 @@ function handleAuxClick(e) {
   right: calc(-1 * var(--left-bar-width));
   bottom: calc(-1 * var(--left-bar-width));
   border-radius: var(--radius-xl);
-  box-shadow:
-    1px 1px 15px rgba(0, 0, 0, 0.2) inset,
-    inset 1px 1px 1px rgba(255, 255, 255, 0.23);
+  border: 1px solid rgba(255, 255, 255, 0.05);
   pointer-events: none;
 }
 

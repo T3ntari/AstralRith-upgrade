@@ -129,8 +129,9 @@ const props = defineProps({
   },
 })
 
-const currentLiveLog = ref(null)
+const currentLiveLog = ref('')
 const currentLiveLogCursor = ref(0)
+const MAX_LIVE_LINES = 500
 const emptyText = ['No live game detected.', 'Start your game to proceed.']
 
 const logs = ref([])
@@ -222,7 +223,18 @@ async function getLiveStdLog() {
       if (logCursor.new_file) {
         currentLiveLog.value = ''
       }
-      currentLiveLog.value = currentLiveLog.value + logCursor.output
+      if (logCursor.output) {
+        if (currentLiveLog.value) {
+          currentLiveLog.value += logCursor.output
+        } else {
+          currentLiveLog.value = logCursor.output
+        }
+        // Trim to last MAX_LIVE_LINES lines to prevent unbounded growth
+        const lines = currentLiveLog.value.split('\n')
+        if (lines.length > MAX_LIVE_LINES) {
+          currentLiveLog.value = lines.slice(-MAX_LIVE_LINES).join('\n')
+        }
+      }
       currentLiveLogCursor.value = logCursor.cursor
       returnValue = currentLiveLog.value
     }
@@ -426,7 +438,7 @@ interval.value = setInterval(async () => {
       }
     }
   }
-}, 250)
+}, 1000)
 
 const unlistenProcesses = await process_listener(async (e) => {
   if (e.event === 'launched') {

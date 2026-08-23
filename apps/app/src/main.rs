@@ -37,9 +37,6 @@ async fn initialize_state(app: tauri::AppHandle) -> api::Result<()> {
 
     //     let update_fut = updater.check();
 
-        // tracing::info!("Initializing app state...");
-        State::init().await?;
-
     //     let check_bar = theseus::init_loading(
     //         theseus::LoadingBarType::CheckingForUpdates,
     //         1.0,
@@ -148,17 +145,61 @@ fn restart_app(app: tauri::AppHandle) {
 // if Tauri app is called with arguments, then those arguments will be treated as commands
 // ie: deep links or filepaths for .mrpacks
 fn main() {
-    // Fix black screen on Linux: webkit2gtk DMABUF renderer causes blank/black
-    // windows on NVIDIA and some AMD GPU setups. Must be set before webview init.
+    // Linux rendering (launcher window): keep WebKitGTK on the hardware
+    // accelerated path. The launcher is 2D UI — it should render on the
+    // integrated GPU (fast, low power), NOT be offloaded to the discrete GPU.
+    // Forcing __NV_PRIME_RENDER_OFFLOAD=1 here made WebKitGTK try to allocate
+    // GBM buffers through NVIDIA, which fails on PRIME laptops (white screen /
+    // "Failed to create GBM buffer"), or forced WEBKIT_DISABLE_DMABUF_RENDERER
+    // = software SHM rendering (15 FPS UI on high-end machines).
+    //
+    // Policy:
+    //   * Prefer the X11 backend (GLX) because WebKitGTK DMABUF is reliable
+    //     there and NVIDIA GLX breaks under XWayland.
+    //   * Keep DMABUF ENABLED (hardware compositing). Only fall back to
+    //     disabling it if the user explicitly needs to (env override).
+    //   * Do NOT set __NV_PRIME_RENDER_OFFLOAD for the launcher. Minecraft
+    //     instances get their own GPU selection from settings.gpu_preference.
     #[cfg(target_os = "linux")]
     {
-        if std::env::var("WEBKIT_DISABLE_DMABUF_RENDERER").is_err() {
-            std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+        // X11 backend so GLX + DMABUF hardware path is used (XWayland SHM is
+        // software-rendered and janky). Respect an explicit user override.
+        if std::env::var("GDK_BACKEND").is_err() {
+            std::env::set_var("GDK_BACKEND", "x11");
         }
-        // Default to VSYNC on for smooth launcher rendering. Users can override
-        // via environment variable if needed. The UI setting takes effect on next launch.
+
+        // VSYNC OFF — prevents scroll stutter on NVIDIA GLX.
         if std::env::var("__GL_SYNC_TO_VBLANK").is_err() {
-            std::env::set_var("__GL_SYNC_TO_VBLANK", "1");
+            std::env::set_var("__GL_SYNC_TO_VBLANK", "0");
+        }
+
+        // On PRIME/hybrid laptops the default GLX vendor may be NVIDIA, whose
+        // GBM/DMABUF path fails under XWayland ("Failed to create GBM buffer"
+        // => white window). The launcher is 2D UI: render it with the Mesa
+        // (integrated GPU) GLX vendor so DMA-BUF hardware compositing works.
+        // Only force this when an Intel/AMD (Mesa) GPU is actually present.
+        if std::env::var("__GLX_VENDOR_LIBRARY_NAME").is_err() {
+            let has_mesa_gpu = std::fs::read_dir("/sys/class/drm")
+                .map(|entries| {
+                    entries.filter_map(|e| e.ok()).any(|e| {
+                        let vendor_path = e.path().join("device/vendor");
+                        std::fs::read_to_string(vendor_path)
+                            .map(|v| {
+                                let v = v.trim();
+                                v == "0x8086" || v == "0x1002"
+                            })
+                            .unwrap_or(false)
+                    })
+                })
+                .unwrap_or(false);
+            if has_mesa_gpu {
+                std::env::set_var("__GLX_VENDOR_LIBRARY_NAME", "mesa");
+                // Keep the discrete GPU out of EGL/DMA-BUF too. WebKitGTK picks
+                // the EGL platform it finds first; with PRIME offload unset,
+                // NVIDIA's EGL can still grab DMA-BUF and fail. Pinning the
+                // offload to "0" makes Mesa/Intel own the buffers.
+                std::env::set_var("__NV_PRIME_RENDER_OFFLOAD", "0");
+            }
         }
     }
 

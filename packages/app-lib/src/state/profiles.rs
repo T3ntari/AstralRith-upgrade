@@ -551,28 +551,35 @@ impl Profile {
                 let path = path.join(folder);
 
                 if path.exists() {
-                    for subdirectory in std::fs::read_dir(&path)
-                        .map_err(|e| io::IOError::with_path(e, &path))?
-                    {
-                        let subdirectory =
-                            subdirectory.map_err(io::IOError::from)?.path();
-                        if subdirectory.is_file() {
-                            if let Some(file_name) = subdirectory
-                                .file_name()
-                                .and_then(|x| x.to_str())
-                            {
-                                let file_size = subdirectory
-                                    .metadata()
-                                    .map_err(io::IOError::from)?
-                                    .len();
+                    let profile_path = profile.path.clone();
+                    let folder_name = folder.to_string();
+                    let scanned = tokio::task::spawn_blocking(move || -> Result<Vec<String>, io::IOError> {
+                        let mut result = vec![];
+                        for subdirectory in std::fs::read_dir(&path)
+                            .map_err(|e| io::IOError::with_path(e, &path))?
+                        {
+                            let subdirectory =
+                                subdirectory.map_err(io::IOError::from)?.path();
+                            if subdirectory.is_file() {
+                                if let Some(file_name) = subdirectory
+                                    .file_name()
+                                    .and_then(|x| x.to_str())
+                                {
+                                    let file_size = subdirectory
+                                        .metadata()
+                                        .map_err(io::IOError::from)?
+                                        .len();
 
-                                keys.push(format!(
-                                    "{file_size}-{}/{folder}/{file_name}",
-                                    profile.path
-                                ));
+                                    result.push(format!(
+                                        "{file_size}-{}/{folder_name}/{file_name}",
+                                        profile_path
+                                    ));
+                                }
                             }
                         }
-                    }
+                        Ok(result)
+                    }).await.map_err(|e| crate::Error::from(crate::ErrorKind::OtherError(format!("Task join error: {}", e))))??;
+                    keys.extend(scanned);
                 }
             }
         }
@@ -646,37 +653,44 @@ impl Profile {
             let path = path.join(folder);
 
             if path.exists() {
-                for subdirectory in std::fs::read_dir(&path)
-                    .map_err(|e| io::IOError::with_path(e, &path))?
-                {
-                    let subdirectory =
-                        subdirectory.map_err(io::IOError::from)?.path();
-                    if subdirectory.is_file() {
-                        if let Some(file_name) =
-                            subdirectory.file_name().and_then(|x| x.to_str())
-                        {
-                            let file_size = subdirectory
-                                .metadata()
-                                .map_err(io::IOError::from)?
-                                .len();
+                let profile_path = self.path.clone();
+                let folder_name = folder.to_string();
+                let scanned = tokio::task::spawn_blocking(move || -> Result<Vec<InitialScanFile>, io::IOError> {
+                    let mut result = vec![];
+                    for subdirectory in std::fs::read_dir(&path)
+                        .map_err(|e| io::IOError::with_path(e, &path))?
+                    {
+                        let subdirectory =
+                            subdirectory.map_err(io::IOError::from)?.path();
+                        if subdirectory.is_file() {
+                            if let Some(file_name) =
+                                subdirectory.file_name().and_then(|x| x.to_str())
+                            {
+                                let file_size = subdirectory
+                                    .metadata()
+                                    .map_err(io::IOError::from)?
+                                    .len();
 
-                            keys.push(InitialScanFile {
-                                path: format!(
-                                    "{}/{folder}/{}",
-                                    self.path,
-                                    file_name.trim_end_matches(".disabled")
-                                ),
-                                file_name: file_name.to_string(),
-                                project_type,
-                                size: file_size,
-                                cache_key: format!(
-                                    "{file_size}-{}/{folder}/{file_name}",
-                                    self.path
-                                ),
-                            });
+                                result.push(InitialScanFile {
+                                    path: format!(
+                                        "{}/{folder_name}/{}",
+                                        profile_path,
+                                        file_name.trim_end_matches(".disabled")
+                                    ),
+                                    file_name: file_name.to_string(),
+                                    project_type,
+                                    size: file_size,
+                                    cache_key: format!(
+                                        "{file_size}-{}/{folder_name}/{file_name}",
+                                        profile_path
+                                    ),
+                                });
+                            }
                         }
                     }
-                }
+                    Ok(result)
+                }).await.map_err(|e| crate::Error::from(crate::ErrorKind::OtherError(format!("Task join error: {}", e))))??;
+                keys.extend(scanned);
             }
         }
 

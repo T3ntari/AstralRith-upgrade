@@ -209,11 +209,9 @@ onMounted(() => {
   if (rowContainer.value instanceof Element) {
     resizeObserver.value.observe(rowContainer.value)
   }
-  window.addEventListener('resize', calculateCardsPerRow)
 })
 
 onUnmounted(() => {
-  window.removeEventListener('resize', calculateCardsPerRow)
   if (resizeObserver.value && rowContainer.value instanceof Element) {
     resizeObserver.value.unobserve(rowContainer.value)
   }

@@ -168,7 +168,7 @@ import { get, get_full_path, kill, run } from '@/helpers/profile'
 import { get_by_profile_path } from '@/helpers/process'
 import { process_listener, profile_listener } from '@/helpers/events'
 import { useRoute, useRouter } from 'vue-router'
-import { ref, onUnmounted, computed, watch } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { handleError, useBreadcrumbs, useLoading } from '@/store/state'
 import { showProfileInFolder } from '@/helpers/utils.js'
 import ContextMenu from '@/components/ui/ContextMenu.vue'
@@ -192,11 +192,16 @@ const router = useRouter()
 const breadcrumbs = useBreadcrumbs()
 
 const offline = ref(!navigator.onLine)
-window.addEventListener('offline', () => {
-  offline.value = true
+let offlineHandler, onlineHandler
+onMounted(() => {
+  offlineHandler = () => { offline.value = true }
+  onlineHandler = () => { offline.value = false }
+  window.addEventListener('offline', offlineHandler)
+  window.addEventListener('online', onlineHandler)
 })
-window.addEventListener('online', () => {
-  offline.value = false
+onUnmounted(() => {
+  if (offlineHandler) window.removeEventListener('offline', offlineHandler)
+  if (onlineHandler) window.removeEventListener('online', onlineHandler)
 })
 
 const instance = ref()

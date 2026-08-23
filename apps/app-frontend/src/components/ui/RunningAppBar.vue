@@ -35,7 +35,7 @@
     </div>
     <div v-if="updateState">
       <a>
-        <Button class="download" :disabled="installState" @click="confirmUpdating(), getRemote(false, false)">
+        <Button class="download" :disabled="installState" @click="openUpdateModal">
           <DownloadIcon />
           {{
             installState
@@ -45,31 +45,7 @@
         </Button>
       </a>
     </div>
-    <ModalWrapper ref="confirmUpdate" :has-to-type="false" header="Request to update the AstralRinth launcher">
-      <div class="modal-body">
-        <div class="markdown-body">
-          <p>The new version of the AstralRinth launcher is available.</p>
-          <p>Your version is outdated. We recommend that you update to the latest version.</p>
-          <p>Warning:</p>
-          <p>
-            Before updating, make sure that you have saved all running instances and made a backup copy of the instances
-            that are valuable to you. Remember that the authors of the product are not responsible for the breakdown of
-            your files, so you should always make copies of them and keep them in a safe place.
-          </p>
-        </div>
-        <span>Version on remote server • <p id="releaseData" class="cosmic inline-fix"></p></span>
-        <span>Version on local device •
-          <p class="cosmic inline-fix">v{{ version }}</p>
-        </span>
-        <div class="button-group push-right">
-          <Button class="download-modal" @click="confirmUpdate.hide()">
-            Decline</Button>
-          <Button class="download-modal" @click="approveUpdate()">
-            Accept
-          </Button>
-        </div>
-      </div>
-    </ModalWrapper>
+
   </div>
   <transition name="download">
     <Card v-if="showCard === true && currentLoadingBars.length > 0" ref="card" class="info-card">
@@ -99,6 +75,7 @@
       </Button>
     </Card>
   </transition>
+  <UpdateModal ref="updateModalRef" />
 </template>
 
 <script setup>
@@ -119,22 +96,14 @@ import ProgressBar from '@/components/ui/ProgressBar.vue'
 import { handleError } from '@/store/notifications.js'
 import { get_many } from '@/helpers/profile.js'
 import { trackEvent } from '@/helpers/analytics'
-import { getVersion } from '@tauri-apps/api/app'
-
-const version = await getVersion()
-
-import { installState, getRemote, updateState } from '@/helpers/update.js'
-import ModalWrapper from './modal/ModalWrapper.vue'
+import { installState, updateState } from '@/helpers/update.js'
+import UpdateModal from '@/components/ui/modal/UpdateModal.vue'
 
 const confirmUpdate = ref(null)
+const updateModalRef = ref(null)
 
-const confirmUpdating = () => {
-  confirmUpdate.value.show()
-}
-
-const approveUpdate = async () => {
-  confirmUpdate.value.hide()
-  await getRemote(true, true)
+const openUpdateModal = () => {
+  updateModalRef.value?.show()
 }
 
 const router = useRouter()
@@ -288,8 +257,13 @@ const refreshInfo = async () => {
 }
 
 await refreshInfo()
+let loadingDebounce = null
+const debouncedRefreshInfo = () => {
+  if (loadingDebounce) clearTimeout(loadingDebounce)
+  loadingDebounce = setTimeout(() => refreshInfo(), 300)
+}
 const unlistenLoading = await loading_listener(async () => {
-  await refreshInfo()
+  await debouncedRefreshInfo()
 })
 
 const selectProcess = (process) => {
@@ -358,10 +332,6 @@ onBeforeUnmount(() => {
 .cosmic {
   color: #3e8cde;
   text-decoration: none;
-  text-shadow:
-    0 0 4px rgba(79, 173, 255, 0.5),
-    0 0 8px rgba(14, 98, 204, 0.5),
-    0 0 12px rgba(122, 31, 199, 0.5);
   transition: color 0.35s ease;
 }
 
@@ -404,13 +374,8 @@ onBeforeUnmount(() => {
   color: #3e8cde;
   border-radius: var(--radius-md);
   border: 1px solid var(--color-button-bg);
-  // padding: var(--gap-sm) var(--gap-lg);
   background-color: rgba(0, 0, 0, 0);
   text-decoration: none;
-  text-shadow:
-    0 0 4px rgba(79, 173, 255, 0.5),
-    0 0 8px rgba(14, 98, 204, 0.5),
-    0 0 12px rgba(122, 31, 199, 0.5);
   transition: color 0.35s ease;
   display: flex;
   flex-direction: row;
@@ -422,17 +387,12 @@ onBeforeUnmount(() => {
 .download:focus,
 .download:active {
   color: #10fae5;
-  text-shadow: #26065e;
 }
 
 .download-modal {
   color: #3e8cde;
   padding: var(--gap-sm) var(--gap-lg);
   text-decoration: none;
-  text-shadow:
-    0 0 4px rgba(79, 173, 255, 0.5),
-    0 0 8px rgba(14, 98, 204, 0.5),
-    0 0 12px rgba(122, 31, 199, 0.5);
   transition: color 0.35s ease;
 }
 
@@ -440,7 +400,6 @@ onBeforeUnmount(() => {
 .download-modal:focus,
 .download-modal:active {
   color: #10fae5;
-  text-shadow: #26065e;
 }
 
 .action-groups {

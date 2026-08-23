@@ -90,14 +90,7 @@ input {
 
 /* Chrome, Edge, and Safari */
 *::-webkit-scrollbar {
-  width: 16px;
-  border: 3px solid transparent;
-  opacity: 0.5;
-  transition: opacity 0.2s ease-in-out;
-}
-
-*::-webkit-scrollbar:hover {
-  opacity: 1;
+  width: 12px;
 }
 
 *::-webkit-scrollbar-track {
@@ -107,7 +100,7 @@ input {
 *::-webkit-scrollbar-thumb {
   background-color: var(--color-scrollbar);
   border-radius: var(--radius-lg);
-  border: 5px solid transparent;
+  border: 3px solid transparent;
   background-clip: content-box;
 }
 
@@ -131,92 +124,70 @@ img {
   box-shadow: var(--shadow-card);
 }
 
-/* Performance: GPU-accelerate common animated elements */
+/* NOTE: On WebKitGTK, do NOT use `content-visibility:auto`, `contain:paint`,
+   or `contain:layout` on list items. WebKitGTK does not benefit from these
+   the way Chrome/Blink does — instead it causes layout thrashing, broken
+   fixed-positioning (modals), and destroyed scroll performance. */
+
+/* NOTE: Do NOT use CSS `contain` on scroll containers or main layout
+   shells — WebKitGTK treats `contain: layout` as a containing block for
+   fixed-position children, which breaks modals/dialogs and destroys scroll
+   performance.  On WebKitGTK these rules cause more harm than good. */
+
+/* Stable scroll anchoring for feed/chat regions. */
+.app-viewport {
+  overflow-anchor: none;
+}
+
+/* GPU-culling for long scroll lists: off-screen cards are skipped by the
+   compositor (content-visibility), while contain-intrinsic-size keeps the
+   scrollbar height stable. Applied ONLY to card children of scrollable
+   grids/rows — deliberately not global (modals keep normal layout). */
+.instances > *,
+.projects > *,
+.content-list-item {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 140px;
+  contain: layout style;
+}
+
+/* Keep hover/popover elements above culled cards. */
+.instances > *:hover,
+.projects > *:hover {
+  content-visibility: visible;
+}
+
+/* Scroll snappiness on WebKitGTK: prevent scroll chaining and momentum
+   bleed between nested scroll containers (sidebar / viewport / lists). */
 .app-viewport,
-.app-sidebar,
-.app-grid-layout,
-.app-grid-statusbar,
-.app-grid-navbar {
-  will-change: auto;
-  transform: translateZ(0);
-  -webkit-backface-visibility: hidden;
-  backface-visibility: hidden;
+.app-sidebar-scrollable,
+.instances,
+.scroller,
+.log-card {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
-/* Performance: optimize scrollbar rendering */
-*::-webkit-scrollbar {
-  will-change: auto;
-}
-
-/* Performance: reduce compositing layers for transitions */
-.transition-all {
-  will-change: transform, opacity;
-}
-
-/* Performance: GPU-accelerate spinners */
-.animate-spin {
-  will-change: transform;
-  transform: translateZ(0);
-}
-
-/* Performance: reduce paint for hover states */
-.button-base,
-.card-shadow {
-  will-change: auto;
-  transition: filter 0.15s ease, transform 0.15s ease;
-}
-
-/* Performance: isolate layout for instance cards */
-.instances {
-  contain: layout style;
-}
-
-/* Performance: reduce reflow for absolutely positioned elements */
-.absolute {
-  will-change: auto;
-}
-
-/* Performance: cull off-screen search results and instance cards */
-.project-list > section,
-.search > section {
-  content-visibility: auto;
-  contain-intrinsic-size: auto 120px;
-}
-
-/* Performance: cull off-screen instance cards */
-.instances > * {
-  content-visibility: auto;
-  contain-intrinsic-size: auto 80px;
-  contain: layout style paint;
-}
-
-/* Performance: cull off-screen sidebar content */
+/* Keep the scrollbar from shifting content horizontally when it appears. */
+.app-viewport,
 .app-sidebar-scrollable {
-  content-visibility: auto;
-  contain-intrinsic-size: auto 500px;
+  scrollbar-gutter: stable;
 }
 
-/* Performance: isolate news feed items */
-.sidebar-default-content a {
-  contain: layout style;
+/* WebKitGTK CANNOT handle backdrop-filter: blur() — it forces full-window
+   re-composite on every frame, destroying frame rate. Nuke all instances. */
+* {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
 }
 
-/* Performance: reduce composite layers for buttons */
-button {
-  contain: layout style;
+/* WebKitGTK will-change:transform forces a compositor layer per element,
+   which burns VRAM on NVIDIA 3050. Only allow it on the virtual scroller
+   where it's actually needed for recycling, and only on the wrapper. */
+* {
+  will-change: auto !important;
 }
 
-/* Performance: isolate dropdown/popover content */
-[v-popper] {
-  contain: layout style paint;
-}
-
-/* Performance: GPU-accelerate all transitions */
-[class*="hover:"],
-[class*="focus:"] {
-  will-change: auto;
-  transition: filter 0.15s ease, background-color 0.15s ease, transform 0.15s ease, opacity 0.15s ease;
-}
 
 @import '@modrinth/assets/omorphia.scss';
 

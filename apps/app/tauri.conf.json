@@ -9,9 +9,18 @@
     "active": true,
     "category": "Game",
     "copyright": "",
-    "targets": ["deb", "rpm", "appimage"],
+    "targets": [
+      "deb",
+      "rpm",
+      "appimage"
+    ],
     "externalBin": [],
-    "icon": ["icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"],
+    "icon": [
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
     "windows": {
       "certificateThumbprint": null,
       "digestAlgorithm": "sha256",
@@ -33,7 +42,14 @@
     "shortDescription": "",
     "linux": {
       "deb": {
-        "depends": []
+        "depends": [
+          "libwebkit2gtk-4.1-0",
+          "libgtk-3-0",
+          "libayatana-appindicator3-1",
+          "librsvg2-2",
+          "libxdo3",
+          "libssl3"
+        ]
       },
       "appimage": {
         "bundleMediaFramework": false
@@ -41,19 +57,23 @@
     },
     "fileAssociations": [
       {
-        "ext": ["mrpack"],
+        "ext": [
+          "mrpack"
+        ],
         "mimeType": "application/zip+mrpack"
       }
     ]
   },
   "productName": "AstralRinth App",
-  "version": "0.9.204",
+  "version": "0.9.205",
   "mainBinaryName": "AstralRinth App",
   "identifier": "AstralRinthApp",
   "plugins": {
     "deep-link": {
       "desktop": {
-        "schemes": ["modrinth"]
+        "schemes": [
+          "modrinth"
+        ]
       },
       "mobile": []
     }
@@ -79,14 +99,23 @@
     ],
     "security": {
       "assetProtocol": {
-        "scope": ["$APPDATA/caches/icons/*", "$APPCONFIG/caches/icons/*", "$CONFIG/caches/icons/*"],
+        "scope": [
+          "$APPDATA/caches/icons/*",
+          "$APPCONFIG/caches/icons/*",
+          "$CONFIG/caches/icons/*"
+        ],
         "enable": true
       },
-      "capabilities": ["core", "plugins"],
+      "capabilities": [
+        "core",
+        "plugins"
+      ],
       "csp": {
         "default-src": "'self' customprotocol: asset:",
         "connect-src": "https://api.github.com ipc: http://ipc.localhost https://modrinth.com https://*.modrinth.com https://*.posthog.com https://*.sentry.io https://api.mclo.gs",
-        "font-src": ["https://cdn-raw.modrinth.com/fonts/inter/"],
+        "font-src": [
+          "https://cdn-raw.modrinth.com/fonts/inter/"
+        ],
         "img-src": "https: 'unsafe-inline' 'self' asset: http://asset.localhost blob: data:",
         "style-src": "'unsafe-inline' 'self'",
         "script-src": "https://*.posthog.com 'self'",

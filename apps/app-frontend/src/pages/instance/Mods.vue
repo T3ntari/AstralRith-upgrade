@@ -643,16 +643,19 @@ const updateProject = async (mod) => {
 const locks = {}
 
 const toggleDisableMod = async (mod) => {
-  // Use mod's id as the key for the lock. If mod doesn't have a unique id, replace `mod.id` with some unique property.
-  const lock = locks[mod.file_name]
-
-  while (lock) {
+  const maxWait = 5000
+  const start = Date.now()
+  while (locks[mod.file_name]) {
+    if (Date.now() - start > maxWait) {
+      console.warn(`[AR] Lock timeout for ${mod.file_name}, proceeding anyway`)
+      break
+    }
     await new Promise((resolve) => {
-      setTimeout((_) => resolve(), 100)
+      setTimeout(resolve, 50)
     })
   }
 
-  locks[mod.file_name] = 'lock'
+  locks[mod.file_name] = true
 
   try {
     mod.path = await toggle_disable_project(props.instance.path, mod.path)
@@ -670,7 +673,7 @@ const toggleDisableMod = async (mod) => {
     handleError(err)
   }
 
-  locks[mod.file_name] = null
+  locks[mod.file_name] = undefined
 }
 
 const removeMod = async (mod) => {

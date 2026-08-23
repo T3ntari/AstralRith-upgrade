@@ -11,7 +11,6 @@
     >
       <ChevronRightIcon />
     </Button>
-    {{ breadcrumbData.resetToNames(breadcrumbs) }}
     <template v-for="breadcrumb in breadcrumbs" :key="breadcrumb.name">
       <router-link
         v-if="breadcrumb.link"
@@ -45,7 +44,7 @@ import { ChevronRightIcon, ChevronLeftIcon } from '@modrinth/assets'
 import { Button } from '@modrinth/ui'
 import { useBreadcrumbs } from '@/store/breadcrumbs'
 import { useRoute } from 'vue-router'
-import { computed } from 'vue'
+import { computed, watchEffect } from 'vue'
 
 const route = useRoute()
 
@@ -58,5 +57,9 @@ const breadcrumbs = computed(() => {
         ? breadcrumbData.rootContext
         : null
   return additionalContext ? [additionalContext, ...route.meta.breadcrumb] : route.meta.breadcrumb
+})
+
+watchEffect(() => {
+  breadcrumbData.resetToNames(breadcrumbs.value)
 })
 </script>

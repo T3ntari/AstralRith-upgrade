@@ -129,9 +129,7 @@ impl Settings {
             gpu_optimizations: res.gpu_optimizations != 0,
             efficient_mode: res.efficient_mode != 0,
             launcher_vsync: res.launcher_vsync != 0,
-            gpu_preference: res
-                .gpu_preference
-                .unwrap_or_else(|| "auto".to_string()),
+            gpu_preference: res.gpu_preference,
             feature_flags: res
                 .feature_flags
                 .as_ref()

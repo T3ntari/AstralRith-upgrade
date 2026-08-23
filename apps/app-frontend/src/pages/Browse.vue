@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, shallowRef, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import type { Ref } from 'vue'
 import { SearchIcon, XIcon, ClipboardCopyIcon, GlobeIcon, ExternalIcon } from '@modrinth/assets'
 import type { Category, GameVersion, Platform, ProjectType, SortType, Tags } from '@modrinth/ui'
@@ -21,6 +21,7 @@ import { useRoute, useRouter } from 'vue-router'
 import SearchCard from '@/components/ui/SearchCard.vue'
 import { get as getInstance, get_projects as getInstanceProjects } from '@/helpers/profile.js'
 import { get_search_results } from '@/helpers/cache.js'
+import { cacheGet, cacheSet } from '@/helpers/precache.js'
 import NavTabs from '@/components/ui/NavTabs.vue'
 import type Instance from '@/components/ui/Instance.vue'
 import InstanceIndicator from '@/components/ui/InstanceIndicator.vue'
@@ -185,11 +186,16 @@ const {
 } = useSearch(projectTypes, tags, instanceFilters)
 
 const offline = ref(!navigator.onLine)
-window.addEventListener('offline', () => {
-  offline.value = true
+let offlineHandler, onlineHandler
+onMounted(() => {
+  offlineHandler = () => { offline.value = true }
+  onlineHandler = () => { offline.value = false }
+  window.addEventListener('offline', offlineHandler)
+  window.addEventListener('online', onlineHandler)
 })
-window.addEventListener('online', () => {
-  offline.value = false
+onUnmounted(() => {
+  if (offlineHandler) window.removeEventListener('offline', offlineHandler)
+  if (onlineHandler) window.removeEventListener('online', onlineHandler)
 })
 
 // ----- CurseForge mode -----
@@ -424,7 +430,17 @@ watch(requestParams, () => {
 
 async function refreshSearch() {
   if (isCurseForge.value) return
-  let rawResults = await get_search_results(requestParams.value)
+  const cacheKey = `search:browse:${route.params.projectType}:${requestParams.value}`
+
+  // Fast path: cached results for this exact query/page.
+  let rawResults = cacheGet(cacheKey)
+
+  if (!rawResults) {
+    rawResults = await get_search_results(requestParams.value)
+    if (rawResults && rawResults.result && rawResults.result.hits) {
+      cacheSet(cacheKey, rawResults)
+    }
+  }
   if (!rawResults) {
     rawResults = {
       result: {
@@ -444,6 +460,24 @@ async function refreshSearch() {
     }
   }
   results.value = rawResults.result
+
+  // Lightweight pre-cache: fetch the next page in the background so
+  // pagination feels instant. Bound to the ~10MB cache budget; failures
+  // are silently ignored.
+  const nextPage = currentPage.value + 1
+  const nextParams = requestParams.value.includes('offset=')
+    ? requestParams.value.replace(/offset=\d+/, `offset=${(nextPage - 1) * maxResults.value}`)
+    : `${requestParams.value}&offset=${(nextPage - 1) * maxResults.value}`
+  const nextKey = `search:browse:${route.params.projectType}:${nextParams}`
+  if (!cacheGet(nextKey) && nextPage <= Math.ceil((results.value?.total_hits ?? 20) / 20)) {
+    setTimeout(() => {
+      get_search_results(nextParams)
+        .then((r) => {
+          if (r && r.result && r.result.hits) cacheSet(nextKey, r)
+        })
+        .catch(() => {})
+    }, 800)
+  }
 
   const persistentParams: LocationQuery = {}
 

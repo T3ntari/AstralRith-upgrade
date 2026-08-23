@@ -82,7 +82,7 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { onBeforeUnmount, ref, watch } from 'vue'
 import ProgressBar from '@/components/ui/ProgressBar.vue'
 import { loading_listener } from '@/helpers/events.js'
 import { getCurrentWindow } from '@tauri-apps/api/window'
@@ -96,6 +96,12 @@ const hidden = ref(false)
 const message = ref()
 
 const loading = useLoading()
+
+let fakeLoadingTimer = null
+
+onBeforeUnmount(() => {
+  if (fakeLoadingTimer) clearTimeout(fakeLoadingTimer)
+})
 
 watch(loading, (newValue) => {
   if (!newValue.barEnabled) {
@@ -116,7 +122,7 @@ watch(loading, (newValue) => {
 
 function fakeLoadingIncrease() {
   if (loadingProgress.value < 95) {
-    setTimeout(() => {
+    fakeLoadingTimer = setTimeout(() => {
       loadingProgress.value += 1
       fakeLoadingIncrease()
     }, 30)

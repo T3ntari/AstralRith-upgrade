@@ -96,6 +96,11 @@ const pendingFriends = computed(() =>
 )
 
 const loading = ref(true)
+let friendsDebounce = null
+function debouncedLoadFriends() {
+  if (friendsDebounce) clearTimeout(friendsDebounce)
+  friendsDebounce = setTimeout(() => loadFriends(), 1000)
+}
 async function loadFriends(timeout = false) {
   loading.value = timeout
 
@@ -153,9 +158,10 @@ watch(
   { immediate: true },
 )
 
-const unlisten = await friend_listener(() => loadFriends())
+const unlisten = await friend_listener(() => debouncedLoadFriends())
 onUnmounted(() => {
   unlisten()
+  if (friendsDebounce) clearTimeout(friendsDebounce)
 })
 </script>
 

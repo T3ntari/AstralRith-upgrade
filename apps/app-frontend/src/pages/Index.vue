@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onUnmounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import RowDisplay from '@/components/RowDisplay.vue'
 import { list } from '@/helpers/profile.js'
@@ -8,6 +8,7 @@ import { useBreadcrumbs } from '@/store/breadcrumbs'
 import { handleError } from '@/store/notifications.js'
 import dayjs from 'dayjs'
 import { get_search_results } from '@/helpers/cache.js'
+import { cacheGet, cacheSet, isSearchFresh } from '@/helpers/precache.js'
 
 const featuredModpacks = ref({})
 const featuredMods = ref({})
@@ -21,11 +22,16 @@ breadcrumbs.setRootContext({ name: 'Home', link: route.path })
 const recentInstances = ref([])
 
 const offline = ref(!navigator.onLine)
-window.addEventListener('offline', () => {
-  offline.value = true
+let offlineHandler, onlineHandler
+onMounted(() => {
+  offlineHandler = () => { offline.value = true }
+  onlineHandler = () => { offline.value = false }
+  window.addEventListener('offline', offlineHandler)
+  window.addEventListener('online', onlineHandler)
 })
-window.addEventListener('online', () => {
-  offline.value = false
+onUnmounted(() => {
+  if (offlineHandler) window.removeEventListener('offline', offlineHandler)
+  if (onlineHandler) window.removeEventListener('online', onlineHandler)
 })
 
 const getInstances = async () => {
@@ -54,23 +60,42 @@ const getInstances = async () => {
 }
 
 const getFeaturedModpacks = async () => {
+  const cacheKey = `search:discover:modpacks:${filter.value}`
+
+  // Serve cached feed immediately when fresh (snappy first paint).
+  const cached = cacheGet(cacheKey)
+  if (cached) {
+    featuredModpacks.value = cached
+    return
+  }
+
   const response = await get_search_results(
     `?facets=[["project_type:modpack"]]&limit=10&index=follows&filters=${filter.value}`,
   )
 
   if (response) {
     featuredModpacks.value = response.result.hits
+    cacheSet(cacheKey, response.result.hits)
   } else {
     featuredModpacks.value = []
   }
 }
 const getFeaturedMods = async () => {
+  const cacheKey = 'search:discover:mods'
+
+  const cached = cacheGet(cacheKey)
+  if (cached) {
+    featuredMods.value = cached
+    return
+  }
+
   const response = await get_search_results('?facets=[["project_type:mod"]]&limit=10&index=follows')
 
   if (response) {
     featuredMods.value = response.result.hits
+    cacheSet(cacheKey, response.result.hits)
   } else {
-    featuredModpacks.value = []
+    featuredMods.value = []
   }
 }
 
