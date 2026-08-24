@@ -118,14 +118,14 @@ remove_old() {
     # Remove old package installs
     case "$OS" in
         fedora)
-            rpm -q "$APP_ID" >/dev/null 2>&1 && { log "Removing old RPM..."; [[ "$DRY_RUN" == false ]] && sudo rpm -e "$APP_ID" 2>/dev/null || true; }
-            rpm -q astralrinth >/dev/null 2>&1 && { log "Removing old astralrinth RPM..."; [[ "$DRY_RUN" == false ]] && sudo rpm -e astralrinth 2>/dev/null || true; }
-            rpm -q AstralRinth >/dev/null 2>&1 && { log "Removing old AstralRinth RPM..."; [[ "$DRY_RUN" == false ]] && sudo rpm -e AstralRinth 2>/dev/null || true; }
+            for pkg in "$APP_ID" astral-rinth-app astralrinth AstralRinth; do
+                rpm -q "$pkg" >/dev/null 2>&1 && { log "Removing old RPM $pkg..."; [[ "$DRY_RUN" == false ]] && sudo rpm -e "$pkg" 2>/dev/null || true; }
+            done
             ;;
         debian)
-            dpkg -l "$APP_ID" >/dev/null 2>&1 && { log "Removing old DEB..."; [[ "$DRY_RUN" == false ]] && sudo dpkg --purge "$APP_ID" 2>/dev/null || true; }
-            dpkg -l astralrinth >/dev/null 2>&1 && { log "Removing old astralrinth DEB..."; [[ "$DRY_RUN" == false ]] && sudo dpkg --purge astralrinth 2>/dev/null || true; }
-            dpkg -l AstralRinth >/dev/null 2>&1 && { log "Removing old AstralRinth DEB..."; [[ "$DRY_RUN" == false ]] && sudo dpkg --purge AstralRinth 2>/dev/null || true; }
+            for pkg in "$APP_ID" astral-rinth-app astralrinth AstralRinth; do
+                dpkg -l "$pkg" >/dev/null 2>&1 && { log "Removing old DEB $pkg..."; [[ "$DRY_RUN" == false ]] && sudo dpkg --purge "$pkg" 2>/dev/null || true; }
+            done
             ;;
         *)
             # AppImage or unknown - clean common locations
@@ -135,8 +135,8 @@ remove_old() {
             ;;
     esac
 
-    # Remove old desktop entries
-    for entry in "$HOME/.local/share/applications/astralrinth.desktop" "$HOME/.local/share/applications/AstralRinth App.desktop" "$HOME/.local/share/applications/astralrinth-app.desktop" "/usr/share/applications/astralrinth.desktop" "/usr/share/applications/astralrinth-app.desktop"; do
+    # Remove old desktop entries (all known names incl. app2/app3 variants)
+    for entry in "$HOME/.local/share/applications/astralrinth.desktop" "$HOME/.local/share/applications/AstralRinth App.desktop" "$HOME/.local/share/applications/astralrinth-app.desktop" "$HOME/.local/share/applications/astralrinth-app2.desktop" "$HOME/.local/share/applications/astralrinth-app3.desktop" "$HOME/Desktop/astralrinth.desktop" "$HOME/Desktop/AstralRinth App.desktop" "$HOME/Desktop/astralrinth-app.desktop" "$HOME/Desktop/astralrinth-app2.desktop" "$HOME/Desktop/astralrinth-app3.desktop" "/usr/share/applications/astralrinth.desktop" "/usr/share/applications/astralrinth-app.desktop"; do
         [[ -f "$entry" ]] && { log "Removing desktop entry: $entry"; [[ "$DRY_RUN" == false ]] && rm -f "$entry" 2>/dev/null || true; }
     done
 
