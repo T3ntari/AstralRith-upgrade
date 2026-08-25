@@ -17,6 +17,7 @@ import {
   LogOutIcon,
   RightArrowIcon,
   LeftArrowIcon,
+  UserIcon,
 } from '@modrinth/assets'
 import { Avatar, Button, ButtonStyled, Notifications, OverflowMenu } from '@modrinth/ui'
 import { useLoading, useTheming } from '@/store/state'
@@ -56,6 +57,7 @@ import UpdateModal from '@/components/ui/modal/UpdateModal.vue'
 import { updateState, getRemote } from '@/helpers/update.js'
 import { get_user } from '@/helpers/cache.js'
 import AppSettingsModal from '@/components/ui/modal/AppSettingsModal.vue'
+import SkinLookupModal from '@/components/ui/modal/SkinLookupModal.vue'
 import dayjs from 'dayjs'
 // import PromotionWrapper from '@/components/ui/PromotionWrapper.vue'
 // import { hide_ads_window, init_ads_window } from '@/helpers/ads.js'
@@ -101,9 +103,11 @@ onUnmounted(() => {
 })
 
 async function setupApp() {
+  console.info('[AR] setupApp starting')
   stateInitialized.value = true
 
   const settings = await get()
+  console.info('[AR] settings loaded:', Object.keys(settings || {}).length, 'keys')
 
   // Patched
   settings.personalized_ads = false
@@ -211,13 +215,16 @@ async function setupApp() {
 
   // Automatic update detection on launch (non-blocking)
   setTimeout(() => {
+    console.info('[AR] Starting update check...')
     getRemote(false, false)
       .then(() => {
+        console.info('[AR] Update check done, state:', updateState.value)
         if (updateState.value) {
           updateModal.value?.show()
         }
       })
-      .catch((err) => console.error('Update check failed:', err))
+      .catch((err) => console.error('[AR] Update check failed:', err))
+
   }, 3000)
 }
 
@@ -226,14 +233,14 @@ initialize_state()
   .then(() => {
     setupApp().catch((err) => {
       stateFailed.value = true
-      console.error(err)
-      error.showError(err, null, false, 'state_init')
+      console.error('[AstralRinth] setupApp failed:', err)
+      try { error.showError(err, null, false, 'state_init') } catch (e) { console.error('[AstralRinth] showError also failed:', e) }
     })
   })
   .catch((err) => {
     stateFailed.value = true
-    console.error('Failed to initialize app', err)
-    error.showError(err, null, false, 'state_init')
+    console.error('[AstralRinth] initialize_state failed:', err)
+    try { error.showError(err, null, false, 'state_init') } catch (e) { console.error('[AstralRinth] showError also failed:', e) }
   })
 
 const handleClose = async () => {
@@ -262,6 +269,7 @@ const notificationsWrapper = ref()
 const error = useError()
 const errorModal = ref()
 const updateModal = ref()
+const skinLookupModal = ref()
 
 const install = useInstall()
 const modInstallModal = ref()
@@ -328,6 +336,14 @@ const sidebarVisible = computed(() => sidebarToggled.value || forceSidebar.value
 onMounted(() => {
   invoke('show_window')
 
+  // Open devtools with Ctrl+Shift+I (release builds)
+  window.addEventListener('keydown', (e) => {
+    if (e.ctrlKey && e.shiftKey && e.key === 'I') {
+      e.preventDefault()
+      invoke('open_devtools').catch(console.error)
+    }
+  })
+
   notifications.setNotifs(notificationsWrapper.value)
 
   error.setErrorModal(errorModal.value)
@@ -391,6 +407,10 @@ function handleClick(e) {
   }
 }
 
+function onSkinSelected(skinData) {
+  console.info('[AR] Skin selected:', skinData.name, skinData.uuid)
+}
+
 function handleAuxClick(e) {
   // disables middle click -> new tab
   if (e.button === 1) {
@@ -423,8 +443,8 @@ function handleAuxClick(e) {
         <HomeIcon />
       </NavButton>
       <NavButton
-        v-tooltip.right="'Discover content'"
-        to="/browse/modpack"
+        v-tooltip.right="'Mods'"
+        to="/browse/mod"
         :is-primary="() => route.path.startsWith('/browse') && !route.query.i"
         :is-subpage="(route) => route.path.startsWith('/project') && !route.query.i"
       >
@@ -442,6 +462,9 @@ function handleAuxClick(e) {
       >
         <LibraryIcon />
       </NavButton>
+      <NavButton v-tooltip.right="'Skin Lookup'" :to="() => skinLookupModal?.show()" class="mt-2">
+        <UserIcon />
+      </NavButton>
       <div class="h-px w-6 mx-auto my-2 bg-button-bg"></div>
       <suspense>
         <QuickInstanceSwitcher />
@@ -455,12 +478,13 @@ function handleAuxClick(e) {
       </NavButton>
       <div class="flex flex-grow"></div>
       <NavButton
-        v-if="updateState"
         class="update-nav-button"
-        v-tooltip.right="'Update available'"
+        :class="{ 'has-update': updateState }"
+        v-tooltip.right="updateState ? 'Update available — click to view' : 'Check for updates — click to view versions'"
         :to="() => updateModal?.show()"
       >
         <DownloadIcon />
+        <span v-if="updateState" class="update-dot" />
       </NavButton>
       <NavButton v-tooltip.right="'Settings'" :to="() => $refs.settingsModal.show()">
         <SettingsIcon />
@@ -661,6 +685,7 @@ function handleAuxClick(e) {
   <IncompatibilityWarningModal ref="incompatibilityWarningModal" />
   <InstallConfirmModal ref="installConfirmModal" />
   <UpdateModal ref="updateModal" @update-complete="onUpdateComplete" />
+  <SkinLookupModal ref="skinLookupModal" @skin-selected="onSkinSelected" />
 </template>
 
 <style lang="scss" scoped>
@@ -853,22 +878,43 @@ function handleAuxClick(e) {
 }
 
 .update-nav-button {
-  :deep(svg) {
-    color: #a3e635 !important;
-  }
   position: relative;
 
-  &::after {
-    content: '';
-    position: absolute;
-    top: 2px;
-    right: 2px;
-    width: 8px;
-    height: 8px;
-    border-radius: 9999px;
+  :deep(svg) {
+    color: var(--color-secondary) !important;
+    transition: color 0.2s;
+  }
+
+  &:hover :deep(svg) {
+    color: var(--color-contrast) !important;
+  }
+
+  &.has-update :deep(svg) {
+    color: #a3e635 !important;
+  }
+}
+
+.update-dot {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background-color: var(--color-secondary);
+  box-shadow: 0 0 4px var(--color-secondary);
+  transition: background-color 0.2s, box-shadow 0.2s;
+
+  .has-update & {
     background-color: #a3e635;
     box-shadow: 0 0 6px #a3e635;
+    animation: update-pulse 2s infinite;
   }
+}
+
+@keyframes update-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 </style>
 <style>

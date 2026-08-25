@@ -23,13 +23,21 @@ import { useTheming } from '@/store/state'
 import FeatureFlagSettings from '@/components/ui/settings/FeatureFlagSettings.vue'
 import CurseForgeSettings from '@/components/ui/settings/CurseForgeSettings.vue'
 import ModalWrapper from '@/components/ui/modal/ModalWrapper.vue'
+import UpdateModal from '@/components/ui/modal/UpdateModal.vue'
 import { get, set } from '@/helpers/settings'
+import { getRemote, fetchAllReleases, updateState, remoteVersion, localVersion } from '@/helpers/update.js'
 
 const themeStore = useTheming()
 
 const { formatMessage } = useVIntl()
 
 const devModeCounter = ref(0)
+const updateChecking = ref(false)
+
+const updateModalRef = ref(null)
+async function checkForUpdates() {
+  updateModalRef.value?.show()
+}
 
 const developerModeEnabled = defineMessage({
   id: 'app.settings.developer-mode-enabled',
@@ -161,10 +169,18 @@ function devModeCount() {
                 <span v-else class="capitalize">{{ osPlatform }}</span>
                 {{ osVersion }}
               </p>
+              <button
+                class="m-0 mt-1 p-0 bg-transparent border-none text-sm cursor-pointer"
+                style="color: var(--color-brand)"
+                @click="checkForUpdates"
+              >
+                Check for updates
+              </button>
             </div>
           </div>
         </div>
       </template>
     </TabbedModal>
   </ModalWrapper>
+  <UpdateModal ref="updateModalRef" />
 </template>

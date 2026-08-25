@@ -24,7 +24,7 @@
 **One command works everywhere — Linux (Fedora/Debian/Mint/Arch/macOS/Windows):**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/T3ntari/AstralRith-upgrade/beta/setup-universal.sh | bash
+bash <(curl -fsSL https://raw.githubusercontent.com/T3ntari/AstralRith-upgrade/beta/setup-universal.sh)
 ```
 
 This auto-detects your OS, downloads the correct package (`.rpm`, `.deb`, `.dmg`, `.msi`, `.AppImage`), installs via native package manager, creates a desktop entry with GPU fixes, and cleans up.
@@ -32,13 +32,13 @@ This auto-detects your OS, downloads the correct package (`.rpm`, `.deb`, `.dmg`
 **Options:**
 ```bash
 # Force reinstall (clean old first)
-curl -fsSL https://raw.githubusercontent.com/T3ntari/AstralRith-upgrade/beta/setup-universal.sh | bash -s -- --force
+bash <(curl -fsSL https://raw.githubusercontent.com/T3ntari/AstralRith-upgrade/beta/setup-universal.sh) --force
 
 # See what would happen without changes
-curl -fsSL https://raw.githubusercontent.com/T3ntari/AstralRith-upgrade/beta/setup-universal.sh | bash -s -- --dry-run
+bash <(curl -fsSL https://raw.githubusercontent.com/T3ntari/AstralRith-upgrade/beta/setup-universal.sh) --dry-run
 
 # Verbose output
-curl -fsSL https://raw.githubusercontent.com/T3ntari/AstralRith-upgrade/beta/setup-universal.sh | bash -s -- -v
+bash <(curl -fsSL https://raw.githubusercontent.com/T3ntari/AstralRith-upgrade/beta/setup-universal.sh) -v
 ```
 
 ### Linux — Fedora / RHEL / CentOS / Rocky / AlmaLinux

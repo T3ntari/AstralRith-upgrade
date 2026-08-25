@@ -44,4 +44,15 @@ app.use(FloatingVue, {
 })
 app.use(VIntlPlugin)
 
+// Global error handler — log but don't crash the app
+app.config.errorHandler = (err, instance, info) => {
+  console.error('[AstralRinth] Vue error:', err, info)
+}
+
+// Catch unhandled promise rejections (Tauri IPC failures, fetch errors, etc.)
+window.addEventListener('unhandledrejection', (event) => {
+  console.error('[AstralRinth] Unhandled rejection:', event.reason)
+})
+
+console.info('[AstralRinth] Frontend bundle loaded - build index-xsNMePdc')
 app.mount('#app')

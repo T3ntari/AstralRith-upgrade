@@ -93,42 +93,98 @@ install_new() {
     # Ensure directories exist
     mkdir -p "$INSTALL_DIR" "$DESKTOP_DIR" "$ICON_DIR"
 
-    # Get latest release .deb URL
+    # Detect OS and select appropriate package
+    local os_type="unknown"
+    if [ -f /etc/os-release ]; then
+        . /etc/os-release
+        case "$ID" in
+            fedora|rhel|centos|rocky|almalinux) os_type="fedora" ;;
+            debian|ubuntu|pop|elementary|zorin) os_type="debian" ;;
+            linuxmint|mint) os_type="mint" ;;
+            arch|manjaro|endeavouros) os_type="arch" ;;
+            *) os_type="unknown" ;;
+        esac
+    fi
+
+    log "Detected OS type: $os_type"
+
+    # Fetch latest release info
     log "Fetching latest release info..."
     local api_url="https://api.github.com/repos/$REPO/releases/latest"
-    DEB_URL=$(curl -fsSL "$api_url" | grep -o '"browser_download_url": *"[^"]*\.deb"' | head -1 | cut -d'"' -f4)
+    local release_json
+    release_json=$(curl -fsSL "$api_url" || { err "Failed to fetch release info"; exit 1; })
 
-    if [[ -z "$DEB_URL" ]]; then
-        err "Could not find .deb download URL in latest release."
+    local pkg_url=""
+    local pkg_type=""
+
+    case "$os_type" in
+        fedora)
+            pkg_url=$(echo "$release_json" | grep -o '"browser_download_url": *"[^"]*\.rpm"' | head -1 | cut -d'"' -f4)
+            pkg_type="rpm"
+            ;;
+        debian|mint)
+            pkg_url=$(echo "$release_json" | grep -o '"browser_download_url": *"[^"]*\.deb"' | head -1 | cut -d'"' -f4)
+            pkg_type="deb"
+            ;;
+        arch)
+            # Arch uses AppImage
+            pkg_url=$(echo "$release_json" | grep -o '"browser_download_url": *"[^"]*AppImage"' | head -1 | cut -d'"' -f4)
+            pkg_type="appimage"
+            ;;
+        *)
+            # Try .deb first, then AppImage
+            pkg_url=$(echo "$release_json" | grep -o '"browser_download_url": *"[^"]*\.deb"' | head -1 | cut -d'"' -f4)
+            pkg_type="deb"
+            if [[ -z "$pkg_url" ]]; then
+                pkg_url=$(echo "$release_json" | grep -o '"browser_download_url": *"[^"]*AppImage"' | head -1 | cut -d'"' -f4)
+                pkg_type="appimage"
+            fi
+            ;;
+    esac
+
+    if [[ -z "$pkg_url" ]]; then
+        err "No suitable package found for $os_type in latest release."
         err "Check: https://github.com/$REPO/releases"
         exit 1
     fi
 
-    log "Downloading: $DEB_URL"
-    curl -fSL "$DEB_URL" -o "$TMP_DIR/astralrinth.deb"
+    local filename
+    filename=$(basename "$pkg_url")
+    log "Downloading $pkg_type: $filename"
+    curl -fSL "$pkg_url" -o "$TMP_DIR/$filename"
 
-    # Install .deb
-    log "Installing .deb package..."
-    sudo dpkg -i "$TMP_DIR/astralrinth.deb" 2>/dev/null || sudo apt-get install -f -y 2>/dev/null || true
+    # Install package
+    case "$pkg_type" in
+        rpm)
+            log "Installing RPM via dnf..."
+            sudo dnf install -y "$TMP_DIR/$filename"
+            ;;
+        deb)
+            log "Installing DEB via dpkg/apt..."
+            sudo dpkg -i "$TMP_DIR/$filename" 2>/dev/null || sudo apt-get install -f -y 2>/dev/null || true
+            ;;
+        appimage)
+            cp "$TMP_DIR/$filename" "$INSTALL_DIR/$APP_NAME.AppImage"
+            chmod +x "$INSTALL_DIR/$APP_NAME.AppImage"
+            log "AppImage installed to $INSTALL_DIR"
+            ;;
+    esac
 
     # Find installed binary
     local bin_path=""
-    for candidate in "/usr/bin/astralrinth-app" "/usr/bin/astralrinth" "/usr/local/bin/astralrinth" "$INSTALL_DIR/astralrinth"; do
+    for candidate in "/usr/bin/astralrinth-app" "/usr/bin/astralrinth" "/usr/local/bin/astralrinth" "$INSTALL_DIR/astralrinth" "$INSTALL_DIR/$APP_NAME.AppImage"; do
         if [[ -x "$candidate" ]]; then
             bin_path="$candidate"
             break
         fi
     done
 
-    # Fallback: search dpkg for common package names
+    # Package manager fallbacks
     if [[ -z "$bin_path" ]]; then
-        bin_path=$(dpkg -L astral-rinth-app 2>/dev/null | grep -E '/bin/' | head -1 || true)
+        bin_path=$(dpkg -L astralrinth-app 2>/dev/null | grep -E '/bin/' | head -1 || true)
     fi
     if [[ -z "$bin_path" ]]; then
-        bin_path=$(dpkg -L astralrinth 2>/dev/null | grep -E '/bin/' | head -1 || true)
-    fi
-    if [[ -z "$bin_path" ]]; then
-        bin_path=$(dpkg -L AstralRinth 2>/dev/null | grep -E '/bin/' | head -1 || true)
+        bin_path=$(rpm -ql astralrinth-app 2>/dev/null | grep -E '/bin/' | head -1 || true)
     fi
 
     if [[ -z "$bin_path" ]]; then
@@ -170,16 +226,23 @@ create_desktop_entry() {
     local is_appimage="${2:-false}"
     local exec_line
 
-    if [[ "$is_appimage" == "true" ]]; then
-        # Launcher is 2D UI: render on integrated GPU w/ DMABUF hardware compositing.
-        # NVIDIA PRIME offload + DMABUF breaks under XWayland (white window), and
-        # WEBKIT_DISABLE_DMABUF_RENDERER=1 = software SHM (15 FPS). Don't use either.
-        exec_line="env GDK_BACKEND=x11 __NV_PRIME_RENDER_OFFLOAD=0 __GLX_VENDOR_LIBRARY_NAME=mesa __GL_SYNC_TO_VBLANK=0 $bin_path --appimage-extract-and-run"
+    # Detect GPU environment
+    local gpu_env=""
+    local has_nvidia=false
+    if command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi >/dev/null 2>&1; then
+        has_nvidia=true
+    fi
+
+    if [[ "$has_nvidia" == true ]]; then
+        gpu_env="env GDK_BACKEND=x11 __NV_PRIME_RENDER_OFFLOAD=0 __GLX_VENDOR_LIBRARY_NAME=mesa __GL_SYNC_TO_VBLANK=0"
     else
-        # Launcher is 2D UI: render on integrated GPU w/ DMABUF hardware compositing.
-        # NVIDIA PRIME offload + DMABUF breaks under XWayland (white window), and
-        # WEBKIT_DISABLE_DMABUF_RENDERER=1 = software SHM (15 FPS). Don't use either.
-        exec_line="env GDK_BACKEND=x11 __NV_PRIME_RENDER_OFFLOAD=0 __GLX_VENDOR_LIBRARY_NAME=mesa __GL_SYNC_TO_VBLANK=0 $bin_path"
+        gpu_env="env GDK_BACKEND=x11"
+    fi
+
+    if [[ "$is_appimage" == "true" ]]; then
+        exec_line="$gpu_env $bin_path --appimage-extract-and-run"
+    else
+        exec_line="$gpu_env $bin_path"
     fi
 
     cat > "$DESKTOP_DIR/astralrinth.desktop" <<EOF

@@ -65,7 +65,7 @@
     ]
   },
   "productName": "AstralRinth App",
-  "version": "0.9.205",
+  "version": "0.9.206",
   "mainBinaryName": "AstralRinth App",
   "identifier": "AstralRinthApp",
   "plugins": {
@@ -112,11 +112,11 @@
       ],
       "csp": {
         "default-src": "'self' customprotocol: asset:",
-        "connect-src": "https://api.github.com ipc: http://ipc.localhost https://modrinth.com https://*.modrinth.com https://*.posthog.com https://*.sentry.io https://api.mclo.gs",
+        "connect-src": "https://api.github.com ipc: http://ipc.localhost https://modrinth.com https://*.modrinth.com https://*.posthog.com https://*.sentry.io https://api.mclo.gs https://api.mojang.com https://sessionserver.mojang.com https://textures.minecraft.net https://api.mcheads.org https://api.ashcon.app https://mc-heads.net",
         "font-src": [
           "https://cdn-raw.modrinth.com/fonts/inter/"
         ],
-        "img-src": "https: 'unsafe-inline' 'self' asset: http://asset.localhost blob: data:",
+        "img-src": "https: http://textures.minecraft.net https://textures.minecraft.net https://api.mcheads.org http://api.mcheads.org https://mc-heads.net http://mc-heads.net 'unsafe-inline' 'self' asset: http://asset.localhost blob: data:",
         "style-src": "'unsafe-inline' 'self'",
         "script-src": "https://*.posthog.com 'self'",
         "frame-src": "https://www.youtube.com https://www.youtube-nocookie.com https://discord.com 'self'"

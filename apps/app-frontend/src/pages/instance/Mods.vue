@@ -159,6 +159,17 @@
             <DownloadIcon /> Update pack
           </button>
         </ButtonStyled>
+        <ButtonStyled
+          v-if="cfPackUpdate"
+          type="transparent"
+          color="brand"
+          color-fill="text"
+          hover-color-fill="text"
+        >
+          <button class="w-max" :disabled="cfPackUpdating" @click="updateCfPack">
+            <DownloadIcon /> {{ cfPackUpdating ? 'Updating…' : 'Update CurseForge pack' }}
+          </button>
+        </ButtonStyled>
       </template>
       <template #actions="{ item }">
         <ButtonStyled
@@ -301,6 +312,7 @@ import {
   get_version_many,
 } from '@/helpers/cache.js'
 import { profile_listener } from '@/helpers/events.js'
+import { checkPackUpdate, installedPack, getFileDownloadUrl } from '@/helpers/curseforge.js'
 import ShareModalWrapper from '@/components/ui/modal/ShareModalWrapper.vue'
 import { getCurrentWebview } from '@tauri-apps/api/webview'
 import dayjs from 'dayjs'
@@ -338,6 +350,47 @@ const canUpdatePack = computed(() => {
   return props.instance.linked_data.version_id !== props.versions[0].id
 })
 const exportModal = ref(null)
+
+// CurseForge modpack update support
+const cfPackUpdate = ref(null)
+const cfPackUpdating = ref(false)
+
+const checkCfPackUpdate = async () => {
+  try {
+    cfPackUpdate.value = await checkPackUpdate(props.instance.path)
+  } catch {
+    cfPackUpdate.value = null
+  }
+}
+
+const updateCfPack = async () => {
+  if (!cfPackUpdate.value) return
+  cfPackUpdating.value = true
+  try {
+    const pack = await installedPack(props.instance.path)
+    const fileId = cfPackUpdate.value[0]
+    const resolved = await getFileDownloadUrl(pack.project_id, fileId)
+    if (resolved?.requires_manual_download) {
+      handleError({
+        message: 'This CurseForge pack update requires manual download from CurseForge.',
+      })
+      cfPackUpdate.value = null
+      return
+    }
+    await invoke('plugin:cf|cf_install_modpack', {
+      profilePath: props.instance.path,
+      packUrl: resolved.url,
+      packName: pack.name,
+      packProjectId: pack.project_id,
+      packFileId: fileId,
+    })
+    cfPackUpdate.value = null
+  } catch (err) {
+    handleError({ message: `Failed to update CurseForge pack: ${err.message}` })
+  } finally {
+    cfPackUpdating.value = false
+  }
+}
 
 const projects = ref([])
 const selectedFiles = ref([])
@@ -444,6 +497,7 @@ const initProjects = async (cacheBehaviour?) => {
   selectionMap.value = newSelectionMap
 }
 await initProjects()
+checkCfPackUpdate()
 
 const modpackVersionModal = ref(null)
 const installing = computed(() => props.instance.install_stage !== 'installed')

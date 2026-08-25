@@ -19,6 +19,10 @@ export default new createRouter({
       },
     },
     {
+      path: '/browse',
+      redirect: '/browse/mod',
+    },
+    {
       path: '/browse/:projectType',
       name: 'Discover content',
       component: Pages.Browse,
@@ -139,7 +143,6 @@ export default new createRouter({
   linkActiveClass: 'router-link-active',
   linkExactActiveClass: 'router-link-exact-active',
   scrollBehavior() {
-    // Sometimes Vue's scroll behavior is not working as expected, so we need to manually scroll to top (especially on Linux)
     requestAnimationFrame(() => {
       document.querySelector('.app-viewport')?.scrollTo(0, 0)
     })

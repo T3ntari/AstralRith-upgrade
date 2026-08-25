@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # AstralRinth Universal Installer
 # Auto-detects OS and installs the appropriate package (.msi/.rpm/.deb/.appimage)
-# Usage: curl -fsSL https://raw.githubusercontent.com/T3ntari/AstralRith-upgrade/beta/setup-universal.sh | bash
-#        curl -fsSL https://raw.githubusercontent.com/T3ntari/AstralRith-upgrade/beta/setup-universal.sh | bash -s -- --help
+# Usage: bash <(curl -fsSL https://raw.githubusercontent.com/T3ntari/AstralRith-upgrade/beta/setup-universal.sh)
+#        bash <(curl -fsSL https://raw.githubusercontent.com/T3ntari/AstralRith-upgrade/beta/setup-universal.sh) --help
 
 set -euo pipefail
 
@@ -78,7 +78,7 @@ log()  { echo -e "${CYAN}[AR]${NC} $*"; }
 ok()   { echo -e "${GREEN}[AR]${NC} $*"; }
 warn() { echo -e "${YELLOW}[AR]${NC} $*"; }
 err()  { echo -e "${RED}[AR]${NC} $*" >&2; }
-vlog() { [[ "$VERBOSE" == true ]] && log "$*"; }
+vlog() { [[ "$VERBOSE" == true ]] && log "$*" || true; }
 
 # Detect OS
 detect_os() {
@@ -86,12 +86,22 @@ detect_os() {
         Linux*)
             if [ -f /etc/os-release ]; then
                 . /etc/os-release
+                # Check ID_LIKE first for derivatives (Mint is "ubuntu" based)
+                local distro_id="${ID_LIKE:-$ID}"
                 case "$ID" in
                     fedora|rhel|centos|rocky|almalinux) echo "fedora" ;;
-                    debian|ubuntu|mint|pop|elementary|zorin|linuxmint) echo "debian" ;;
+                    debian|ubuntu|pop|elementary|zorin) echo "debian" ;;
+                    linuxmint|mint) echo "mint" ;;
                     arch|manjaro|endeavouros) echo "arch" ;;
                     opensuse*|suse) echo "opensuse" ;;
-                    *) echo "linux-unknown" ;;
+                    *)
+                        # Fallback: check ID_LIKE
+                        case "$distro_id" in
+                            *debian*|*ubuntu*) echo "debian" ;;
+                            *fedora*|*rhel*) echo "fedora" ;;
+                            *) echo "linux-unknown" ;;
+                        esac
+                        ;;
                 esac
             else echo "linux-unknown"; fi
             ;;
@@ -161,12 +171,43 @@ remove_old() {
 # Fetch latest release
 fetch_release() {
     log "Fetching latest release from GitHub..."
-    RELEASE_JSON=$(curl -fsSL --max-time 30 "$API_URL" || { err "Failed to fetch release info (network?)"; exit 1; })
-    if [[ -z "$RELEASE_JSON" || "$RELEASE_JSON" == "Not Found" ]]; then
+
+    # Try curl first, then wget as fallback (Debian compat)
+    RELEASE_JSON=""
+    if command -v curl &>/dev/null; then
+        RELEASE_JSON=$(curl -fSL --retry 3 --retry-delay 2 --connect-timeout 15 --max-time 60 "$API_URL" 2>/dev/null) || {
+            err "curl failed — trying wget..."
+            RELEASE_JSON=""
+        }
+    fi
+
+    if [[ -z "$RELEASE_JSON" ]] && command -v wget &>/dev/null; then
+        RELEASE_JSON=$(wget -qO- --timeout=60 "$API_URL" 2>/dev/null) || {
+            err "wget also failed"
+            RELEASE_JSON=""
+        }
+    fi
+
+    if [[ -z "$RELEASE_JSON" ]]; then
+        err "Could not fetch release info from GitHub."
+        err "Check your internet connection and try again."
+        err "URL: $API_URL"
+        exit 1
+    fi
+
+    if [[ "$RELEASE_JSON" == "Not Found" ]] || [[ "$RELEASE_JSON" == *"Not Found"* ]]; then
         err "No release found for $REPO"
         exit 1
     fi
-    vlog "Release info fetched"
+
+    # Validate it looks like JSON
+    if ! echo "$RELEASE_JSON" | grep -q '"tag_name"'; then
+        err "Invalid response from GitHub API"
+        vlog "Response: ${RELEASE_JSON:0:200}"
+        exit 1
+    fi
+
+    vlog "Release info fetched (${#RELEASE_JSON} bytes)"
 }
 
 # Select asset URL based on OS
@@ -222,11 +263,17 @@ download_asset() {
         return
     fi
 
-    curl -fSL --retry 3 --retry-delay 2 --max-time 300 "$ASSET_URL" -o "$DEST" \
-        || { err "Download failed"; exit 1; }
+    # Try curl first, then wget as fallback (Debian/Mint compat)
+    if command -v curl &>/dev/null; then
+        curl -fSL --retry 3 --retry-delay 2 --connect-timeout 15 --max-time 300 "$ASSET_URL" -o "$DEST" 2>/dev/null || true
+    fi
+    if [[ ! -s "$DEST" ]] && command -v wget &>/dev/null; then
+        log "Trying wget fallback..."
+        wget --tries=3 --timeout=300 -O "$DEST" "$ASSET_URL" 2>/dev/null || true
+    fi
 
     # Verify file exists and has size
-    [[ -s "$DEST" ]] || { err "Downloaded file is empty"; exit 1; }
+    [[ -s "$DEST" ]] || { err "Download failed — check your internet connection"; exit 1; }
     ok "Downloaded: $FILENAME ($(du -h "$DEST" | cut -f1))"
 }
 
@@ -297,9 +344,11 @@ create_desktop_entry() {
     # Find binary
     BINARY=""
     local candidates=(
+        "/usr/bin/ModrinthApp"
         "/usr/bin/astralrinth-app"
         "/usr/bin/astralrinth"
         "/usr/local/bin/astralrinth"
+        "$HOME/.local/bin/ModrinthApp"
         "$HOME/.local/bin/astralrinth"
         "$HOME/.local/bin/AstralRinth.AppImage"
         "/opt/AstralRinth/AstralRinth"
@@ -331,6 +380,24 @@ create_desktop_entry() {
     # compositing (fast, smooth). Do NOT offload to NVIDIA or disable DMABUF -
     # both break on PRIME laptops (white window / software SHM 15 FPS).
     local exec_line="env GDK_BACKEND=x11 __NV_PRIME_RENDER_OFFLOAD=0 __GLX_VENDOR_LIBRARY_NAME=mesa __GL_SYNC_TO_VBLANK=0 $exec_base"
+
+    # Detect GPU environment for the desktop entry
+    local gpu_env=""
+    local has_nvidia=false
+    if command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi >/dev/null 2>&1; then
+        has_nvidia=true
+    fi
+
+    # On systems with NVIDIA, use the launcher on integrated GPU (2D UI, not 3D)
+    # On pure NVIDIA systems, just use the default GPU
+    if [[ "$has_nvidia" == true ]]; then
+        gpu_env="env GDK_BACKEND=x11 __NV_PRIME_RENDER_OFFLOAD=0 __GLX_VENDOR_LIBRARY_NAME=mesa __GL_SYNC_TO_VBLANK=0"
+    else
+        # On AMD/Intel only systems, just use X11 backend
+        gpu_env="env GDK_BACKEND=x11"
+    fi
+
+    local exec_line="$gpu_env $BINARY"
 
     cat > "$DESKTOP_DIR/astralrinth.desktop" <<EOF
 [Desktop Entry]

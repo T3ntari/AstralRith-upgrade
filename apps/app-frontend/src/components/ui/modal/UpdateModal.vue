@@ -1,210 +1,214 @@
 <template>
-  <ModalWrapper ref="modal" :header="'AstralRinth Update Available'" :has-to-type="false">
-    <div class="update-modal-body">
-      <div class="update-icon-wrapper">
-        <DownloadIcon class="update-icon" />
-      </div>
-      <h2 class="update-title">A new version of AstralRinth is available</h2>
-      <p class="update-subtitle">
-        Version <span class="version-badge">{{ localVersion }}</span> is installed. A newer version
-        <span class="version-badge brand">{{ remoteVersion }}</span> is ready to download.
-      </p>
-
-      <div class="update-info-grid">
-        <div class="update-info-row">
-          <span class="update-info-label">Current version</span>
-          <span class="update-info-value">{{ localVersion }}</span>
+  <ModalWrapper ref="modal" :header="modalTitle" :has-to-type="false">
+    <div class="update-body">
+      <!-- Top: Current version -->
+      <div class="version-hero">
+        <div class="version-hero-icon">
+          <svg viewBox="0 0 48 48" fill="none" class="hero-svg">
+            <defs>
+              <linearGradient id="heroGrad" x1="0" y1="0" x2="48" y2="48">
+                <stop offset="0%" :stop-color="hasUpdate ? '#65a30d' : '#6b7280'" />
+                <stop offset="100%" :stop-color="hasUpdate ? '#a3e635' : '#9ca3af'" />
+              </linearGradient>
+            </defs>
+            <circle cx="24" cy="24" r="22" stroke="url(#heroGrad)" stroke-width="2.5" fill="none" opacity="0.3" />
+            <circle cx="24" cy="24" r="16" stroke="url(#heroGrad)" stroke-width="1.5" fill="none" opacity="0.15" />
+            <path d="M24 12v8l6 4" stroke="url(#heroGrad)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+            <circle cx="24" cy="24" r="3" fill="url(#heroGrad)" />
+          </svg>
         </div>
-        <div class="update-info-row">
-          <span class="update-info-label">Latest version</span>
-          <span class="update-info-value brand">{{ remoteVersion }}</span>
+        <div class="version-hero-text">
+          <h2 class="m-0 text-xl font-extrabold text-contrast">
+            {{ hasUpdate ? 'Update Available' : 'You\'re Up to Date' }}
+          </h2>
+          <p class="m-0 text-sm text-secondary mt-1">
+            <span class="ver-pill">{{ localVersion }}</span>
+            <template v-if="hasUpdate">
+              <span class="arrow">→</span>
+              <span class="ver-pill accent">{{ remoteVersion }}</span>
+            </template>
+            <template v-else> — running the latest</template>
+          </p>
         </div>
       </div>
 
-      <div class="update-warning">
-        <strong>Before updating:</strong> Make sure all running instances are stopped and consider
-        backing up important instance data. The authors are not responsible for data loss.
+      <!-- Status badges -->
+      <div class="status-row">
+        <div class="status-badge" :class="hasUpdate ? 'accent' : 'muted'">
+          <span class="status-dot" />
+          {{ hasUpdate ? 'New version found' : 'Latest version' }}
+        </div>
+        <div v-if="checking" class="status-badge checking">
+          <span class="spin-dot" /> Checking...
+        </div>
       </div>
 
-      <div v-if="updateError" class="update-error">
-        <p class="update-error-text">{{ updateError }}</p>
-        <a :href="launcherUrl" target="_blank" class="update-error-link">Open releases page</a>
+      <!-- Check for updates -->
+      <button v-if="!hasUpdate && !installing && !finished && !checking" class="check-btn" @click="doCheck">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.41 1.41M11.54 11.54l1.41 1.41M3.05 12.95l1.41-1.41M11.54 4.46l1.41-1.41" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        Check for updates
+      </button>
+
+      <!-- Checking spinner -->
+      <div v-if="checking" class="checking-box">
+        <div class="pulse-ring" />
+        <span class="text-sm text-secondary">Contacting GitHub...</span>
       </div>
 
-      <div v-if="installState" class="update-progress">
+      <!-- Error -->
+      <div v-if="updateError" class="error-box">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="#ef4444" stroke-width="1.5"/><path d="M8 5v3M8 10.5v.5" stroke="#ef4444" stroke-width="1.5" stroke-linecap="round"/></svg>
+        {{ updateError }}
+      </div>
+
+      <!-- Download progress -->
+      <div v-if="installing" class="progress-section">
         <div class="progress-header">
-          <span class="update-progress-text">{{ statusText }}</span>
-          <span class="update-eta">{{ formatEta(etaSeconds) }}</span>
+          <span class="text-sm font-bold text-contrast">{{ statusText }}</span>
+          <span class="text-sm font-bold" style="color: #a3e635">{{ progress }}%</span>
         </div>
         <div class="progress-track">
-          <div class="progress-fill" :style="{ width: progress + '%' }"></div>
+          <div class="progress-fill" :style="{ width: progress + '%' }">
+            <div class="progress-glow" />
+          </div>
         </div>
-        <div class="progress-footer">
-          <span>{{ Math.round(progress) }}%</span>
-          <button class="cancel-link" @click="cancelUpdate" :disabled="installing">Cancel</button>
-        </div>
-      </div>
-
-      <div v-else-if="finished" class="update-finished">
-        <p class="update-finished-text">
-          ✅ Update downloaded. The installer should open automatically.
-          <template v-if="launchFailed"> If it did not open, find the file in your Downloads folder.</template>
-        </p>
-        <div class="update-actions">
-          <ButtonStyled type="transparent">
-            <button @click="closeAfterFinish">Close</button>
-          </ButtonStyled>
-          <ButtonStyled color="brand">
-            <a :href="launcherUrl" target="_blank" class="update-now-btn">Open releases page</a>
-          </ButtonStyled>
+        <div class="progress-stats">
+          <span class="text-xs text-secondary">{{ progress }}% complete</span>
+          <button class="cancel-link" @click="cancelUpdate">Cancel</button>
         </div>
       </div>
 
-      <div class="update-actions" v-else>
-        <ButtonStyled type="transparent">
-          <button @click="decline">Not now</button>
-        </ButtonStyled>
-        <ButtonStyled color="brand">
-          <button class="update-now-btn" @click="accept">
-            <DownloadIcon />
-            Update now
-          </button>
-        </ButtonStyled>
+      <!-- Finished -->
+      <div v-if="finished" class="done-box">
+        <div class="done-icon">✓</div>
+        <div class="done-content">
+          <span class="text-sm font-bold text-contrast">{{ updateMessage || 'Download complete' }}</span>
+          <div class="done-actions">
+            <button class="restart-btn" @click="restartApp">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 1v4h4M13 13V9H9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M11.5 5A5.5 5.5 0 0 0 2.3 2.3l-1.3 1.3M2.5 9a5.5 5.5 0 0 0 9.2 2.7l1.3-1.3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Restart App
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Update action -->
+      <div v-if="hasUpdate && !installing && !finished && !checking" class="update-actions">
+        <button class="btn-secondary" @click="decline">Later</button>
+        <button class="btn-primary" @click="accept">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1v10M4 7l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M2 13h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          Download & Install
+        </button>
+      </div>
+
+      <!-- Older versions -->
+      <div v-if="olderVersions.length > 0 && !installing" class="older-section">
+        <div class="older-header">
+          <h3 class="m-0 text-sm font-bold text-contrast">Previous Versions</h3>
+          <span class="text-xs text-secondary">{{ olderVersions.length }} available</span>
+        </div>
+        <div class="older-list">
+          <div v-for="ver in olderVersions" :key="ver.tag" class="older-row">
+            <div class="older-left">
+              <span class="older-tag">{{ ver.tag }}</span>
+              <span class="older-date">{{ formatDate(ver.date) }}</span>
+            </div>
+            <div class="older-right">
+              <span v-if="ver.size" class="older-size">{{ formatSize(ver.size) }}</span>
+              <button v-if="ver.assetUrl" class="dl-btn" @click="handleOlderDownload(ver)">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1v8M3 6l3 3 3-3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M1 10h10" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                Download
+              </button>
+              <span v-else class="no-asset">N/A</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Release notes -->
+      <div v-if="showNotes && latestNotes" class="notes-section">
+        <button class="notes-toggle" @click="showNotes = !showNotes">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+          Release Notes
+        </button>
+        <div class="notes-content">{{ latestNotes }}</div>
       </div>
     </div>
   </ModalWrapper>
 </template>
 
 <script setup>
-import { ref, computed, onBeforeUnmount } from 'vue'
-import { DownloadIcon } from '@modrinth/assets'
-import { ButtonStyled } from '@modrinth/ui'
+import { ref, computed } from 'vue'
 import ModalWrapper from '@/components/ui/modal/ModalWrapper.vue'
 import {
-  installState,
-  getRemote,
-  updateState,
-  updateProgress,
-  updateMessage,
-  remoteVersion as remoteVersionRef,
-  launcherUrl,
-  onDownloadProgress,
+  getRemote, updateState, updateProgress, updateMessage,
+  remoteVersion as remoteVersionRef, olderVersions, fetchAllReleases,
+  downloadOlderVersion, onDownloadProgress,
 } from '@/helpers/update.js'
 import { getVersion } from '@tauri-apps/api/app'
+import { invoke } from '@tauri-apps/api/core'
 
 const modal = ref(null)
 const localVersion = ref('')
 const remoteVersion = ref('')
 const updateError = ref('')
-
-// Real download progress (from Rust loading events) with ETA computed locally.
-const progress = computed(() => Math.min(100, Math.round(updateProgress.value)))
-const etaSeconds = ref(null)
-const cancelled = ref(false)
+const checking = ref(false)
 const installing = ref(false)
 const finished = ref(false)
-const launchFailed = ref(false)
-let startTime = null
+const showNotes = ref(false)
+const progress = computed(() => Math.min(100, Math.round(updateProgress.value)))
+const statusText = computed(() => updateMessage.value || 'Downloading...')
+const hasUpdate = ref(false)
+const latestNotes = ref('')
+const modalTitle = computed(() => hasUpdate.value ? 'Update Available' : 'Version Manager')
 let unlistenProgress = null
-let etaTimer = null
-
-const statusText = computed(() => updateMessage.value || 'Downloading update...')
 
 const emit = defineEmits(['update-complete'])
 
-function show() {
-  localVersion.value = ''
-  remoteVersion.value = ''
+async function show() {
   updateError.value = ''
   finished.value = false
-  launchFailed.value = false
-  getVersion()
-    .then((v) => (localVersion.value = `v${v}`))
-    .catch(() => (localVersion.value = 'Unknown'))
-  getRemote(false, false)
-    .then(() => {
-      remoteVersion.value = remoteVersionRef.value || 'Unknown'
-    })
-    .catch(() => (remoteVersion.value = 'Unknown'))
-  modal.value.show()
-}
-
-function hide() {
-  stopTracking()
-  modal.value.hide()
-}
-
-function stopTracking() {
-  if (unlistenProgress) {
-    try {
-      unlistenProgress()
-    } catch (e) {
-      /* ignore */
-    }
-    unlistenProgress = null
-  }
-  if (etaTimer) {
-    clearInterval(etaTimer)
-    etaTimer = null
-  }
-}
-
-function startProgressTracking() {
-  updateProgress.value = 0
-  updateMessage.value = 'Starting download...'
-  etaSeconds.value = null
-  cancelled.value = false
-  startTime = Date.now()
-
-  // Compute ETA from real progress deltas every 500ms.
-  let lastProgress = 0
-  let lastTime = startTime
-  etaTimer = setInterval(() => {
-    const now = Date.now()
-    const p = progress.value
-    if (p > lastProgress && p < 100) {
-      const dt = (now - lastTime) / 1000
-      const dp = p - lastProgress
-      if (dp > 0) {
-        const speed = dp / dt // percent per second
-        const remaining = (100 - p) / speed
-        etaSeconds.value = Math.round(remaining)
-      }
-      lastProgress = p
-      lastTime = now
-    } else if (p >= 100) {
-      etaSeconds.value = 0
-    }
-  }, 500)
-
-  // Real progress from the Rust backend.
-  unlistenProgress = onDownloadProgress(({ progress: p, message, done }) => {
-    updateProgress.value = p
-    if (message) updateMessage.value = message
-    if (done) {
-      updateProgress.value = 100
-      updateMessage.value = 'Update downloaded.'
-      etaSeconds.value = 0
-      finishSuccess()
-    }
-  })
-}
-
-function finishSuccess() {
-  stopTracking()
   installing.value = false
-  installState.value = false
-  finished.value = true
-  updateState.value = false
-  // Keep the dialog open showing "downloaded" state so nothing "disappears".
-  // The installer launch happens inside Rust after download completes.
+  checking.value = false
+
+  try { localVersion.value = `v${await getVersion()}` } catch { localVersion.value = 'v?' }
+
+  modal.value.show()
+
+  loadingReleases.value = true
+  try {
+    await Promise.all([getRemote(false, false), fetchAllReleases()])
+    remoteVersion.value = remoteVersionRef.value || ''
+    hasUpdate.value = updateState.value
+    if (allReleases.value?.length) {
+      latestNotes.value = allReleases.value[0]?.body || ''
+    }
+  } catch (err) {
+    updateError.value = err?.message || String(err)
+  } finally {
+    loadingReleases.value = false
+  }
 }
 
-function formatEta(seconds) {
-  if (seconds === null || seconds === undefined || seconds < 0) return 'estimating...'
-  if (seconds < 5) return 'almost done'
-  if (seconds < 60) return `${seconds}s remaining`
-  return `${Math.floor(seconds / 60)}m ${seconds % 60}s remaining`
+import { allReleases } from '@/helpers/update.js'
+const loadingReleases = ref(false)
+
+function hide() { stopTracking(); modal.value?.hide() }
+function stopTracking() { if (unlistenProgress) { try { unlistenProgress() } catch {} unlistenProgress = null } }
+
+async function doCheck() {
+  checking.value = true
+  updateError.value = ''
+  try {
+    await Promise.all([getRemote(false, false), fetchAllReleases()])
+    remoteVersion.value = remoteVersionRef.value || ''
+    hasUpdate.value = updateState.value
+    if (allReleases.value?.length) latestNotes.value = allReleases.value[0]?.body || ''
+  } catch (err) {
+    updateError.value = err?.message || String(err)
+  } finally {
+    checking.value = false
+  }
 }
 
 async function accept() {
@@ -212,250 +216,316 @@ async function accept() {
     updateError.value = ''
     installing.value = true
     finished.value = false
-    startProgressTracking()
+    updateProgress.value = 0
+    updateMessage.value = 'Preparing download...'
+
+    unlistenProgress = onDownloadProgress(({ progress: p, message, done }) => {
+      updateProgress.value = p
+      if (message) updateMessage.value = message
+      if (done) {
+        updateProgress.value = 100
+        installing.value = false
+        finished.value = true
+        updateMessage.value = 'Download complete!'
+        updateState.value = false
+        emit('update-complete')
+      }
+    })
+
     await getRemote(true, true)
-    // getRemote resolves after the Rust download + installer launch handoff.
     if (!finished.value) {
-      finishSuccess()
+      installing.value = false
+      finished.value = true
+      updateMessage.value = 'Download complete!'
+      emit('update-complete')
     }
-    emit('update-complete')
   } catch (err) {
-    console.error('Update failed:', err)
     installing.value = false
-    installState.value = false
-    stopTracking()
     updateError.value = err?.message || String(err)
+    stopTracking()
   }
 }
 
-function decline() {
-  cancelled.value = true
-  updateState.value = false
-  hide()
+function decline() { hide() }
+function cancelUpdate() { installing.value = false; stopTracking(); hide() }
+
+async function restartApp() {
+  try { await invoke('restart_app') } catch { window.location.reload() }
 }
 
-function cancelUpdate() {
-  cancelled.value = true
-  installing.value = false
-  installState.value = false
-  stopTracking()
-  hide()
+function formatDate(d) {
+  return d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''
 }
 
-function closeAfterFinish() {
-  hide()
+function formatSize(bytes) {
+  if (!bytes) return ''
+  if (bytes > 1048576) return (bytes / 1048576).toFixed(1) + ' MB'
+  return (bytes / 1024).toFixed(0) + ' KB'
 }
 
-onBeforeUnmount(() => {
-  stopTracking()
-})
+async function handleOlderDownload(ver) {
+  try {
+    updateMessage.value = `Downloading ${ver.tag}...`
+    updateProgress.value = 0
+    installing.value = true
 
-defineExpose({
-  show,
-  hide,
-})
+    unlistenProgress = onDownloadProgress(({ progress: p, message, done }) => {
+      updateProgress.value = p
+      if (message) updateMessage.value = message
+      if (done) {
+        installing.value = false
+        finished.value = true
+        updateMessage.value = `${ver.tag} downloaded!`
+      }
+    })
+
+    await downloadOlderVersion(ver)
+    if (!finished.value) {
+      installing.value = false
+      finished.value = true
+      updateMessage.value = `${ver.tag} downloaded!`
+    }
+  } catch (err) {
+    installing.value = false
+    updateError.value = `Download failed: ${err.message}`
+    stopTracking()
+  }
+}
+
+defineExpose({ show, hide })
 </script>
 
-<style scoped lang="scss">
-.update-modal-body {
+<style scoped>
+.update-body {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  padding: 0.5rem;
+  gap: 0.875rem;
+  min-width: 520px;
+  max-width: 600px;
+  padding: 0.25rem;
 }
 
-.update-icon-wrapper {
+/* Hero */
+.version-hero {
   display: flex;
-  justify-content: center;
-  margin-bottom: 0.5rem;
+  gap: 1rem;
+  align-items: center;
+  padding: 1rem;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
 }
+.version-hero-icon { flex-shrink: 0; width: 48px; height: 48px; }
+.hero-svg { width: 48px; height: 48px; }
+.version-hero-text { flex: 1; }
 
-.update-icon {
-  width: 3rem;
-  height: 3rem;
-  color: var(--color-brand);
-}
-
-.update-title {
-  margin: 0;
-  text-align: center;
-  font-size: 1.5rem;
+.ver-pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--color-button-bg);
   font-weight: 700;
-  color: var(--color-contrast);
+  font-size: 0.8rem;
+  font-family: monospace;
+}
+.ver-pill.accent {
+  background: rgba(163, 230, 53, 0.15);
+  color: #a3e635;
+}
+.arrow {
+  margin: 0 6px;
+  color: var(--color-secondary);
 }
 
-.update-subtitle {
-  margin: 0;
-  text-align: center;
-  color: var(--color-secondary);
+/* Status */
+.status-row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.status-badge {
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px 10px; border-radius: 20px;
+  font-size: 0.75rem; font-weight: 600;
+}
+.status-badge.accent { background: rgba(163, 230, 53, 0.12); color: #a3e635; }
+.status-badge.muted { background: var(--color-button-bg); color: var(--color-secondary); }
+.status-badge.checking { background: rgba(99, 102, 241, 0.12); color: #818cf8; }
+.status-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: currentColor;
+}
+.spin-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  border: 1.5px solid transparent;
+  border-top-color: currentColor;
+  animation: spin 0.8s linear infinite;
+}
+
+/* Check button */
+.check-btn {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 16px; border-radius: 8px;
+  background: var(--color-button-bg);
+  border: 1px solid var(--color-border);
+  color: var(--color-contrast);
+  font-weight: 600; font-size: 0.85rem;
+  cursor: pointer; transition: all 0.15s;
+}
+.check-btn:hover { background: var(--color-button-hover-bg, var(--color-button-bg)); border-color: var(--color-contrast); }
+
+/* Checking */
+.checking-box {
+  display: flex; align-items: center; gap: 12px;
+  padding: 1rem; justify-content: center;
+}
+.pulse-ring {
+  width: 12px; height: 12px; border-radius: 50%;
+  background: #818cf8;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* Error */
+.error-box {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 0.75rem; border-radius: 8px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  color: #f87171; font-size: 0.85rem;
+}
+
+/* Progress */
+.progress-section {
+  padding: 1rem; border-radius: 10px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+}
+.progress-header { display: flex; justify-content: space-between; margin-bottom: 8px; }
+.progress-track {
+  height: 6px; border-radius: 99px;
+  background: var(--color-button-bg);
+  overflow: hidden; position: relative;
+}
+.progress-fill {
+  height: 100%; border-radius: 99px;
+  background: linear-gradient(90deg, #65a30d, #a3e635);
+  transition: width 0.3s ease;
+  position: relative;
+}
+.progress-glow {
+  position: absolute; right: 0; top: -2px;
+  width: 16px; height: 10px; border-radius: 50%;
+  background: rgba(163, 230, 53, 0.4);
+  filter: blur(4px);
+  animation: glow-pulse 1s ease-in-out infinite;
+}
+.progress-stats {
+  display: flex; justify-content: space-between;
+  margin-top: 8px;
+}
+.cancel-link {
+  background: none; border: none; color: #f87171;
+  cursor: pointer; font-size: 0.75rem; font-weight: 600;
+  padding: 0;
+}
+
+/* Done */
+.done-box {
+  display: flex; align-items: center; gap: 12px;
+  padding: 0.875rem 1rem; border-radius: 10px;
+  background: rgba(34, 197, 94, 0.08);
+  border: 1px solid rgba(34, 197, 94, 0.2);
+}
+.done-icon {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: rgba(34, 197, 94, 0.15);
+  display: flex; align-items: center; justify-content: center;
+  color: #22c55e; font-weight: 900; font-size: 1rem;
+  flex-shrink: 0;
+}
+.done-content { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+.done-actions { display: flex; gap: 8px; }
+.restart-btn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 12px; border-radius: 6px;
+  background: rgba(34, 197, 94, 0.15);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  color: #4ade80; font-size: 0.8rem; font-weight: 600;
+  cursor: pointer; transition: all 0.15s;
+}
+.restart-btn:hover { background: rgba(34, 197, 94, 0.25); }
+
+/* Action buttons */
+.update-actions { display: flex; gap: 8px; justify-content: flex-end; }
+.btn-secondary {
+  padding: 8px 16px; border-radius: 8px;
+  background: var(--color-button-bg);
+  border: 1px solid var(--color-border);
+  color: var(--color-secondary); font-weight: 600;
+  font-size: 0.85rem; cursor: pointer;
+}
+.btn-primary {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 20px; border-radius: 8px;
+  background: linear-gradient(135deg, #65a30d, #4d7c0f);
+  border: none; color: #fff;
+  font-weight: 700; font-size: 0.85rem;
+  cursor: pointer; transition: all 0.15s;
+}
+.btn-primary:hover { filter: brightness(1.1); transform: translateY(-1px); }
+
+/* Older versions */
+.older-section {
+  border-top: 1px solid var(--color-border);
+  padding-top: 0.75rem;
+}
+.older-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.older-list { display: flex; flex-direction: column; gap: 4px; }
+.older-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.5rem 0.75rem; border-radius: 8px;
+  background: var(--color-bg);
+  border: 1px solid transparent;
+  transition: border-color 0.15s;
+}
+.older-row:hover { border-color: var(--color-border); }
+.older-left { display: flex; flex-direction: column; gap: 1px; }
+.older-tag { font-weight: 700; font-size: 0.85rem; color: var(--color-contrast); font-family: monospace; }
+.older-date { font-size: 0.7rem; color: var(--color-secondary); }
+.older-right { display: flex; align-items: center; gap: 10px; }
+.older-size { font-size: 0.7rem; color: var(--color-secondary); }
+.dl-btn {
+  display: flex; align-items: center; gap: 4px;
+  padding: 4px 10px; border-radius: 6px;
+  background: var(--color-button-bg);
+  border: 1px solid var(--color-border);
+  color: var(--color-contrast); font-size: 0.75rem;
+  font-weight: 600; cursor: pointer;
+  transition: all 0.15s;
+}
+.dl-btn:hover { background: rgba(163, 230, 53, 0.12); border-color: #a3e635; color: #a3e635; }
+.no-asset { font-size: 0.7rem; color: var(--color-secondary); }
+
+/* Release notes */
+.notes-section { border-top: 1px solid var(--color-border); padding-top: 0.5rem; }
+.notes-toggle {
+  display: flex; align-items: center; gap: 6px;
+  background: none; border: none; padding: 4px 0;
+  color: var(--color-secondary); font-size: 0.8rem;
+  font-weight: 600; cursor: pointer;
+}
+.notes-content {
+  margin-top: 8px; padding: 0.75rem;
+  background: var(--color-bg); border-radius: 8px;
+  font-size: 0.8rem; color: var(--color-secondary);
+  white-space: pre-wrap; max-height: 200px; overflow-y: auto;
   line-height: 1.5;
 }
 
-.version-badge {
-  display: inline-block;
-  padding: 0.1rem 0.5rem;
-  border-radius: var(--radius-sm);
-  background-color: var(--color-button-bg);
-  font-weight: 600;
-  color: var(--color-contrast);
-
-  &.brand {
-    background-color: var(--color-brand-highlight);
-    color: var(--color-brand);
-  }
+/* Animations */
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.8); }
 }
-
-.update-info-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  background-color: var(--color-bg);
-  border-radius: var(--radius-md);
-  padding: 1rem;
-}
-
-.update-info-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.update-info-label {
-  color: var(--color-secondary);
-  font-weight: 500;
-}
-
-.update-info-value {
-  font-weight: 700;
-  color: var(--color-contrast);
-
-  &.brand {
-    color: var(--color-brand);
-  }
-}
-
-.update-warning {
-  background-color: var(--color-orange-bg, #fff3e0);
-  border-left: 3px solid var(--color-orange, #ff9800);
-  padding: 0.75rem 1rem;
-  border-radius: var(--radius-sm);
-  font-size: 0.85rem;
-  line-height: 1.4;
-  color: var(--color-contrast);
-}
-
-.update-progress {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  background-color: var(--color-bg);
-  border-radius: var(--radius-md);
-  padding: 1rem;
-}
-
-.progress-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.update-progress-text {
-  font-size: 0.85rem;
-  color: var(--color-contrast);
-  font-weight: 600;
-}
-
-.update-eta {
-  font-size: 0.8rem;
-  color: #a3e635;
-  font-weight: 600;
-}
-
-.progress-track {
-  height: 6px;
-  border-radius: 9999px;
-  background-color: var(--color-button-bg);
-  overflow: hidden;
-}
-
-.progress-fill {
-  height: 100%;
-  border-radius: 9999px;
-  background: linear-gradient(90deg, #65a30d, #a3e635);
-  transition: width 0.4s ease-out;
-}
-
-.progress-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 0.78rem;
-  color: var(--color-secondary);
-}
-
-.cancel-link {
-  background: none;
-  border: none;
-  color: var(--color-red);
-  cursor: pointer;
-  font-size: 0.78rem;
-  font-weight: 600;
-  padding: 0;
-
-  &:hover {
-    text-decoration: underline;
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: default;
-  }
-}
-
-.update-error {
-  background-color: var(--color-red-bg, #fee2e2);
-  border-left: 3px solid var(--color-red, #ef4444);
-  padding: 0.75rem 1rem;
-  border-radius: var(--radius-sm);
-  font-size: 0.85rem;
-  line-height: 1.4;
-  color: var(--color-contrast);
-}
-
-.update-error-text {
-  margin: 0 0 0.5rem 0;
-  word-break: break-word;
-}
-
-.update-error-link {
-  color: var(--color-brand);
-  font-weight: 600;
-  text-decoration: underline;
-}
-
-.update-now-btn {
-  color: #1a2e05 !important;
-  text-decoration: none;
-}
-
-.update-actions {
-  display: flex;
-  gap: 0.75rem;
-  justify-content: flex-end;
-  margin-top: 0.5rem;
-}
-
-.update-finished {
-  background-color: var(--color-green-bg, #dcfce7);
-  border-left: 3px solid var(--color-green, #22c55e);
-  padding: 0.75rem 1rem;
-  border-radius: var(--radius-sm);
-  font-size: 0.85rem;
-  line-height: 1.4;
-  color: var(--color-contrast);
-}
-
-.update-finished-text {
-  margin: 0 0 0.5rem 0;
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
 }
 </style>

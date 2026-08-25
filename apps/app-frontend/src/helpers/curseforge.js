@@ -1,24 +1,54 @@
-import { fetch as tauriFetch } from '@tauri-apps/plugin-http'
+/**
+ * CurseForge provider service (frontend).
+ *
+ * All CurseForge API traffic goes through Tauri commands backed by the Rust
+ * provider layer. The application credential never enters frontend state,
+ * localStorage, URLs, logs, or analytics.
+ *
+ * The frontend only ever sees normalized UnifiedProject / UnifiedFile models.
+ */
+import { invoke } from '@tauri-apps/api/core'
 
-const CF_BASE = 'https://api.curseforge.com/v1'
-const CF_GAME_ID = 432
+const CF_MODE_KEY = 'ar.cf_mode'
 
-export const CF_CLASS_IDS = {
-  mod: 6,
-  modpack: 4471,
-  resourcepack: 12,
-  shader: 6552,
-  datapack: 6945,
+export function getCfMode() {
+  return localStorage.getItem(CF_MODE_KEY) === 'true'
 }
 
-export const CF_LOADER_IDS = {
-  any: 0,
-  forge: 1,
-  liteloader: 3,
-  fabric: 4,
-  quilt: 5,
-  neoforge: 6,
-  every: 7,
+export function setCfMode(enabled) {
+  localStorage.setItem(CF_MODE_KEY, enabled ? 'true' : 'false')
+  document.documentElement.classList.toggle('cf-mode', enabled)
+}
+
+// Legacy localStorage key — removed: the credential never lives in the
+// browser. Kept as a no-op so any leftover code path cannot read a stale key.
+const LEGACY_CF_API_KEY = 'ar.cf_api_key'
+
+export function getCfApiKey() {
+  return ''
+}
+
+export function setCfApiKey() {
+  // Intentionally a no-op: API keys are infrastructure, not frontend state.
+}
+
+export function clearCfApiKey() {
+  try {
+    localStorage.removeItem(LEGACY_CF_API_KEY)
+  } catch {
+    /* ignore */
+  }
+}
+
+export const CF_SORT_FIELDS = {
+  1: 'Featured',
+  2: 'Popularity',
+  3: 'Last updated',
+  4: 'Name',
+  5: 'Author',
+  6: 'Total downloads',
+  7: 'Recently updated',
+  8: 'Recently added',
 }
 
 export const CF_LOADER_NAMES = {
@@ -31,89 +61,30 @@ export const CF_LOADER_NAMES = {
   7: 'Every loader',
 }
 
-export const CF_SORT_FIELDS = {
-  1: 'Featured',
-  2: 'Popularity',
-  3: 'Last updated',
-  4: 'Name',
-  6: 'Total downloads',
-  7: 'Recently updated',
-  8: 'Recently added',
-}
-
-const CF_MODE_KEY = 'ar.cf_mode'
-const CF_API_KEY = 'ar.cf_api_key'
-
-export function getCfMode() {
-  return localStorage.getItem(CF_MODE_KEY) === 'true'
-}
-
-export function setCfMode(enabled) {
-  localStorage.setItem(CF_MODE_KEY, enabled ? 'true' : 'false')
-  document.documentElement.classList.toggle('cf-mode', enabled)
-}
-
-export function getCfApiKey() {
-  return localStorage.getItem(CF_API_KEY) || ''
-}
-
-export function setCfApiKey(key) {
-  localStorage.setItem(CF_API_KEY, key.trim())
-}
-
-export function clearCfApiKey() {
-  localStorage.removeItem(CF_API_KEY)
-}
-
 export function classIdForProjectType(projectType) {
-  return CF_CLASS_IDS[projectType] ?? CF_CLASS_IDS.mod
+  const ids = {
+    mod: 6,
+    modpack: 4471,
+    resourcepack: 12,
+    shader: 6552,
+    datapack: 6945,
+  }
+  return ids[projectType] ?? 6
 }
 
 export function loaderIdForPlatform(platform) {
-  if (!platform) return CF_LOADER_IDS.any
-  const name = platform.toLowerCase()
-  if (name === 'forge') return CF_LOADER_IDS.forge
-  if (name === 'fabric') return CF_LOADER_IDS.fabric
-  if (name === 'quilt') return CF_LOADER_IDS.quilt
-  if (name === 'neoforge') return CF_LOADER_IDS.neoforge
-  return CF_LOADER_IDS.any
+  if (!platform) return 0
+  const name = String(platform).toLowerCase()
+  if (name === 'forge') return 1
+  if (name === 'fabric') return 4
+  if (name === 'quilt') return 5
+  if (name === 'neoforge') return 6
+  return 0
 }
 
-async function cfRequest(path, { params = {}, method = 'GET', body, raw = false } = {}) {
-  const apiKey = getCfApiKey()
-  if (!apiKey) {
-    throw new Error('No CurseForge API key configured')
-  }
-
-  const url = new URL(`${CF_BASE}${path}`)
-  for (const [key, value] of Object.entries(params)) {
-    if (value !== undefined && value !== null && value !== '') {
-      url.searchParams.set(key, String(value))
-    }
-  }
-
-  const headers = {
-    'x-api-key': apiKey,
-    Accept: 'application/json',
-  }
-
-  const response = await tauriFetch(url.toString(), {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-  })
-
-  if (!response.ok) {
-    if (response.status === 403) {
-      throw new Error('CurseForge rejected the API key. Make sure it is valid and enabled.')
-    }
-    throw new Error(`CurseForge API error: ${response.status}`)
-  }
-
-  const data = await response.json()
-  return raw ? data : data.data
-}
-
+/**
+ * Search CurseForge projects (normalized results + real pagination).
+ */
 export async function searchMods({
   projectType,
   query = '',
@@ -125,65 +96,77 @@ export async function searchMods({
   modLoaderType = 0,
   categoryId = undefined,
 }) {
-  const params = {
-    gameId: CF_GAME_ID,
-    classId: classIdForProjectType(projectType),
-    index: page * pageSize,
+  return await invoke('plugin:cf|cf_search', {
+    projectType,
+    query,
+    page,
     pageSize,
-    searchFilter: query,
     sortField,
     sortOrder,
-  }
-  if (gameVersion) params.gameVersion = gameVersion
-  if (modLoaderType && modLoaderType !== CF_LOADER_IDS.any) {
-    params.modLoaderType = modLoaderType
-  }
-  if (categoryId) params.categoryId = categoryId
-
-  const response = await cfRequest('/mods/search', { params, raw: true })
-  return {
-    results: response.data ?? [],
-    totalCount: response.pagination?.totalCount ?? response.data?.length ?? 0,
-  }
-}
-
-export async function getCategories(classId) {
-  return await cfRequest('/categories', {
-    params: { gameId: CF_GAME_ID, classId },
+    gameVersion,
+    modLoaderType,
+    categoryId,
   })
 }
 
+export async function getCategories(classId) {
+  return await invoke('plugin:cf|cf_get_categories', { classId })
+}
+
 export async function getGameVersions() {
-  const versions = await cfRequest('/minecraft/version')
-  return versions
-    .filter((v) => v.versionType === 'release')
-    .map((v) => v.versionString)
-    .filter((v) => !v.includes('_'))
+  return await invoke('plugin:cf|cf_get_game_versions')
 }
 
 export async function getModloaders() {
-  const loaders = await cfRequest('/minecraft/modloader')
-  return loaders
+  return await invoke('plugin:cf|cf_get_mod_loaders')
 }
 
 export async function getModFiles(
   modId,
   { gameVersion = '', modLoaderType = 0, pageSize = 50 } = {},
 ) {
-  const params = { modId, pageSize }
-  if (gameVersion) params.gameVersion = gameVersion
-  if (modLoaderType && modLoaderType !== CF_LOADER_IDS.any) {
-    params.modLoaderType = modLoaderType
-  }
-  return await cfRequest(`/mods/${modId}/files`, { params })
+  return await invoke('plugin:cf|cf_get_project_files', {
+    projectId: modId,
+    gameVersion: gameVersion || null,
+    modLoaderType: modLoaderType || null,
+    pageSize,
+  })
+}
+
+/** Compatibility-filtered + sorted files for the version picker. */
+export async function getCompatibleFiles(
+  modId,
+  { minecraftVersion, loader = '', releaseType = '', pageSize = 50 } = {},
+) {
+  return await invoke('plugin:cf|cf_get_compatible_files', {
+    projectId: modId,
+    minecraftVersion,
+    loader: loader || null,
+    releaseType: releaseType || null,
+    pageSize,
+  })
+}
+
+export async function getFile(modId, fileId) {
+  return await invoke('plugin:cf|cf_get_file', { projectId: modId, fileId })
+}
+
+export async function getProject(projectId) {
+  return await invoke('plugin:cf|cf_get_project', { projectId })
+}
+
+export async function getProjectBySlug(slug, projectType) {
+  return await invoke('plugin:cf|cf_get_project_by_slug', { slug, projectType })
 }
 
 export async function getFileDownloadUrl(modId, fileId) {
-  return await cfRequest(`/mods/${modId}/files/${fileId}/download-url`)
+  return await invoke('plugin:cf|cf_resolve_download', { projectId: modId, fileId })
 }
 
-export function projectUrl(mod) {
-  return `https://www.curseforge.com/minecraft/${mod.classId === 4471 ? 'modpacks' : 'mc-mods'}/${mod.slug}`
+export function projectUrl(mod, fileId, isModpack = false) {
+  const section = isModpack || Number(mod.class_id) === 4471 ? 'modpacks' : 'mc-mods'
+  const base = `https://www.curseforge.com/minecraft/${section}/${mod.slug}`
+  return fileId ? `${base}/files/${fileId}` : base
 }
 
 export function formatDownloadCount(count) {
@@ -194,28 +177,46 @@ export function formatDownloadCount(count) {
   return String(count)
 }
 
-export function cfResultToCard(mod, projectType) {
-  const authors = mod.authors?.map((a) => a.name) ?? []
-  const categories = mod.categories?.map((c) => ({ name: c.name, slug: c.slug })) ?? []
-
-  return {
-    project_id: String(mod.id),
-    id: String(mod.id),
-    slug: mod.slug,
-    title: mod.name,
-    description: mod.summary,
-    icon_url: mod.logo?.url,
-    author: authors.join(', '),
-    downloads: mod.downloadCount,
-    follows: mod.thumbnails?.length ? mod.downloadCount : 0,
-    project_type: projectType,
-    display_categories: categories.map((c) => c.name),
-    versions: mod.gameVersions ?? [],
-    client_side: 'optional',
-    server_side: 'optional',
-    date_created: mod.dateCreated,
-    date_modified: mod.dateModified,
-    cfId: mod.id,
-    cfGameVersions: mod.gameVersions ?? [],
+/**
+ * Parses a CurseForge project URL into { slug, projectType } when possible.
+ * Supports:
+ *   https://www.curseforge.com/minecraft/mc-mods/<slug>/...
+ *   https://www.curseforge.com/minecraft/modpacks/<slug>/...
+ * Returns null for unsupported URLs.
+ */
+export function parseCurseForgeUrl(url) {
+  try {
+    const u = new URL(url)
+    const parts = u.pathname.split('/').filter(Boolean)
+    // ["minecraft", "mc-mods" | "modpacks", "<slug>", ...]
+    if (parts[0] !== 'minecraft') return null
+    const kind = parts[1]
+    const slug = parts[2]
+    if (!slug) return null
+    if (kind === 'mc-mods') return { slug, projectType: 'mod' }
+    if (kind === 'modpacks') return { slug, projectType: 'modpack' }
+    return null
+  } catch {
+    return null
   }
+}
+
+/** Resolve a CurseForge URL to a normalized project via the Rust provider. */
+export async function projectFromUrl(url) {
+  const parsed = parseCurseForgeUrl(url)
+  if (!parsed) return null
+  return await invoke('plugin:cf|cf_get_project_by_slug', {
+    slug: parsed.slug,
+    projectType: parsed.projectType,
+  })
+}
+
+/** Installed CurseForge pack identity for an instance (or null). */
+export async function installedPack(profilePath) {
+  return await invoke('plugin:cf|cf_installed_pack', { profilePath })
+}
+
+/** Whether a newer compatible CurseForge pack file exists. Returns [fileId, date] or null. */
+export async function checkPackUpdate(profilePath) {
+  return await invoke('plugin:cf|cf_check_pack_update', { profilePath })
 }

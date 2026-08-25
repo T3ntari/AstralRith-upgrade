@@ -62,6 +62,9 @@ apps/frontend/.env
 
 .astro
 
+# CurseForge credential file (application infrastructure, never committed)
+curseforge.key
+
 # local scratch / session files
 *.bak
 .note_register
