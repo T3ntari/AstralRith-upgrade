@@ -3,6 +3,14 @@ import { getVersion } from '@tauri-apps/api/app'
 import { invoke } from '@tauri-apps/api/core'
 import { loading_listener } from '@/helpers/events.js'
 
+// Track last downloaded version in localStorage to prevent update loops
+function getLastDownloadedVersion() {
+  try { return localStorage.getItem('astralrinth_last_downloaded_version') || '' } catch { return '' }
+}
+function setLastDownloadedVersion(v) {
+  try { localStorage.setItem('astralrinth_last_downloaded_version', v) } catch {}
+}
+
 export const allowState = ref(false)
 export const installState = ref(false)
 export const updateState = ref(false)
@@ -88,7 +96,9 @@ export async function getRemote(_elementId, downloadArtifact) {
 
   const cleanRemote = stripV(latestRelease)
   const cleanLocal = stripV(currentVersion)
-  const isNewer = latestRelease && !isBlacklisted(cleanRemote) && cmpVersions(cleanRemote, cleanLocal) > 0
+  const lastDownloaded = stripV(getLastDownloadedVersion())
+  const alreadyDownloaded = lastDownloaded && cmpVersions(cleanRemote, lastDownloaded) <= 0
+  const isNewer = latestRelease && !isBlacklisted(cleanRemote) && cmpVersions(cleanRemote, cleanLocal) > 0 && !alreadyDownloaded
 
   if (isNewer && osNames.includes(os.value.toLowerCase())) {
     const exts = getExtensions()
@@ -119,6 +129,7 @@ export async function getRemote(_elementId, downloadArtifact) {
       updateProgress.value = 100
       updateMessage.value = 'Update downloaded.'
       updateState.value = false
+      setLastDownloadedVersion(remoteVersion.value || cleanRemote)
     } else {
       installState.value = false
       throw new Error(`No installer for ${os.value}`)
