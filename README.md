@@ -176,6 +176,23 @@ cargo tauri build --bundles deb,rpm,appimage
 
 ---
 
+## Changelog
+
+### v0.9.207 (August 27, 2026)
+- **Fixed update loop**: Tracks last downloaded version to prevent persistent update prompts
+- **Library auto-download**: Missing Fabric libraries (sponge-mixin 0.17.4, fabric-loader 0.19.4) now downloaded automatically
+- **Java 25 support**: Launcher recognizes Java 25 for MC 26.1.2 compatibility
+- **Dual-GPU fix**: Correct environment variables for Intel+NVIDIA laptops (prevents white screen)
+- **MC 26.1.2 jar**: Ensures client jar exists for Fabric loader 0.19.4
+
+### v0.9.206 (August 25, 2026)
+- Skin Lookup modal
+- SOTA update manager
+- Fixed Browse nav
+- Installer: purge old packages, clean duplicate desktop entries
+
+---
+
 ## Disclaimer
 
 AstralRinth is a project intended for experimentation and educational purposes only. It does not endorse or support piracy, and users are encouraged to obtain valid licenses for a fully-supported Minecraft experience. Users are reminded to respect licensing agreements and support the developers of Minecraft.
