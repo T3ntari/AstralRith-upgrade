@@ -37,7 +37,12 @@ function getExtensions() {
   return []
 }
 
-function stripV(v) { return String(v || '').trim().replace(/^v/i, '') }
+function stripV(v) {
+  const s = String(v || '').trim()
+  // Extract version number: skip any prefix like "AstralRinth v" and extract X.Y.Z...
+  const match = s.match(/(\d[\d.]*(?:[+\-]\d[\d.]*)*)/)
+  return match ? match[1] : s.replace(/^v/i, '')
+}
 
 function cmpVersions(a, b) {
   const pa = stripV(a).split(/[.+-]/).map(x => parseInt(x, 10) || 0)
@@ -51,8 +56,8 @@ function cmpVersions(a, b) {
 }
 
 function isBlacklisted(v) {
-  const s = stripV(v).toLowerCase()
-  return blacklistedBuilds.some(b => s.startsWith(b))
+  const s = String(v || '').trim().toLowerCase()
+  return blacklistedBuilds.some(b => s.includes(b))
 }
 
 function findAsset(assets, extensions) {
@@ -98,7 +103,7 @@ export async function getRemote(_elementId, downloadArtifact) {
   const cleanLocal = stripV(currentVersion)
   const lastDownloaded = stripV(getLastDownloadedVersion())
   const alreadyDownloaded = lastDownloaded && cmpVersions(cleanRemote, lastDownloaded) <= 0
-  const isNewer = latestRelease && !isBlacklisted(cleanRemote) && cmpVersions(cleanRemote, cleanLocal) > 0 && !alreadyDownloaded
+  const isNewer = latestRelease && !isBlacklisted(latestRelease) && cmpVersions(cleanRemote, cleanLocal) > 0 && !alreadyDownloaded
 
   if (isNewer && osNames.includes(os.value.toLowerCase())) {
     const exts = getExtensions()

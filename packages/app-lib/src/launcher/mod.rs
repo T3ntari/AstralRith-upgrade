@@ -497,6 +497,42 @@ pub async fn launch_minecraft(
     )
     .await?;
 
+    // Verify critical files exist. A previous install may have cached the
+    // version JSON but failed to download all libraries (network error, etc).
+    {
+        let client_path = state
+            .directories
+            .version_dir(&version_jar)
+            .join(format!("{version_jar}.jar"));
+        let libs_dir = state.directories.libraries_dir();
+        let missing_lib = version_info.libraries.iter().any(|lib| {
+            if !lib.downloadable {
+                return false;
+            }
+            daedalus::get_path_from_artifact(&lib.name)
+                .ok()
+                .map(|p| !libs_dir.join(&p).exists())
+                .unwrap_or(false)
+        });
+        if !client_path.exists() || missing_lib {
+            tracing::warn!(
+                "Missing files for {}, triggering repair install",
+                version_jar
+            );
+            install_minecraft(profile, None, true).await?;
+        }
+    }
+
+    // Re-fetch version_info after potential repair
+    let version_info = download::download_version_info(
+        &state,
+        version,
+        loader_version.as_ref(),
+        None,
+        None,
+    )
+    .await?;
+
     let java_version = get_java_version_from_profile(profile, &version_info)
         .await?
         .ok_or_else(|| {

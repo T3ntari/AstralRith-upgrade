@@ -9073,7 +9073,7 @@ dependencies = [
 
 [[package]]
 name = "theseus_gui"
-version = "0.9.2"
+version = "0.9.207"
 dependencies = [
  "chrono",
  "cocoa 0.25.0",
